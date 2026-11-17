@@ -1,0 +1,4435 @@
+"use client";
+
+import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  FaSave, FaPlus, FaTrash, FaWhatsapp, FaCopy, FaEdit,
+  FaMusic, FaImage, FaUsers, FaComments, FaCogs, FaCheckCircle,
+  FaInfoCircle, FaFileCsv, FaEye, FaEyeSlash, FaHourglassHalf, FaExternalLinkAlt,
+  FaLock, FaSignOutAlt, FaCalendarAlt, FaSync, FaTimesCircle, FaBars, FaImages, FaFileExcel
+} from "react-icons/fa";
+import * as XLSX from "xlsx";
+import { extractYoutubeId } from "@/lib/youtube";
+
+interface Settings {
+  _id?: string;
+  coupleNames: string;
+  eventDate: string;
+  groom: string;
+  groomNickName: string;
+  groomInstagram: string;
+  groomBio: string;
+  groomTitleFront?: string;
+  groomTitleBack?: string;
+  bride: string;
+  brideNickName: string;
+  brideInstagram: string;
+  brideBio: string;
+  brideTitleFront?: string;
+  brideTitleBack?: string;
+  bibleVerse: string;
+  bibleVerseContent: string;
+  timeline_1: string;
+  timeline_1_content: string;
+  timeline_2: string;
+  timeline_2_content: string;
+  timeline_3: string;
+  timeline_3_content: string;
+  timeline_4?: string;
+  timeline_4_content?: string;
+  timeline_5?: string;
+  timeline_5_content?: string;
+  timelineCount?: number;
+  holyMatrimony: {
+    enabled: boolean;
+    time: string;
+    place: string;
+    place_details: string;
+    googleMapsLink: string;
+  };
+  weddingReception: {
+    enabled: boolean;
+    time: string;
+    place: string;
+    place_details: string;
+    googleMapsLink: string;
+  };
+  livestreaming: {
+    enabled: boolean;
+    time: string;
+    link: string;
+    detail: string;
+  };
+  prewedding: {
+    enabled: boolean;
+    link: string;
+    detail: string;
+  };
+  rsvp: {
+    enabled: boolean;
+    detail: string;
+  };
+  thankyou: string;
+  thankyouDetail: string;
+  closingBoxPosition?: "top" | "bottom";
+  craftedWithLove?: string;
+  musicPath: string;
+  slideImages: {
+    slide1: string;
+    slide2: string;
+    slide3: string;
+    slide4: string;
+    slide5: string;
+    slide6: string;
+    slide7: string;
+    slide8: string;
+    slide9: string;
+    slide10: string;
+    sideImage: string;
+  };
+  invitationTemplate: string;
+  popupTemplate?: string;
+  galleryImages?: string[];
+  weddingGift?: {
+    enabled: boolean;
+    qrisImage: string;
+    qrisOwnerName: string;
+    bankAccounts: {
+      bankName: string;
+      accountNumber: string;
+      accountHolderName: string;
+    }[];
+  };
+  dresscode?: {
+    enabled: boolean;
+    title: string;
+    text: string;
+    image: string;
+  };
+}
+
+interface Guest {
+  _id: string;
+  name: string;
+  phone: string;
+  status: "Belum Dikirim" | "Terkirim";
+  sentAt?: string;
+}
+
+interface Wish {
+  _id: string;
+  name: string;
+  attendance: string;
+  guests: number;
+  message: string;
+  createdAt: string;
+}
+
+export default function AdminDashboard() {
+  // Authentication states
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [loginPassword, setLoginPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginError, setLoginError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [sessionExpiredNotice, setSessionExpiredNotice] = useState("");
+
+  // 15-Minute Session Timer & Re-Auth Modal states
+  const [sessionExpiresAt, setSessionExpiresAt] = useState<number | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(0);
+  const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
+  const [hasWarnedModalOpened, setHasWarnedModalOpened] = useState(false);
+  const [extendPassword, setExtendPassword] = useState("");
+  const [showExtendPassword, setShowExtendPassword] = useState(false);
+  const [isExtendingSession, setIsExtendingSession] = useState(false);
+  const [extendError, setExtendError] = useState("");
+
+  // App data states
+  const [settings, setSettings] = useState<Settings | null>(null);
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [wishes, setWishes] = useState<Wish[]>([]);
+
+  // Bulk selection states
+  const [selectedGuests, setSelectedGuests] = useState<string[]>([]);
+  const [selectedRsvps, setSelectedRsvps] = useState<string[]>([]);
+  const [selectedWishes, setSelectedWishes] = useState<string[]>([]);
+
+  const [activeTab, setActiveTab] = useState<"settings" | "guests" | "rsvp" | "wishes">("settings");
+
+  // Settings tab sub-sections
+  const [settingsSection, setSettingsSection] = useState<"general" | "groomBride" | "loveJourney" | "events" | "livestreaming" | "prewedding" | "dresscode" | "media" | "weddingGift" | "penutup" | "template" | "popupTemplate">("general");
+
+  const handleSelectSection = useCallback((sec: "general" | "groomBride" | "loveJourney" | "events" | "livestreaming" | "prewedding" | "dresscode" | "media" | "weddingGift" | "penutup" | "template" | "popupTemplate") => {
+    setSettingsSection(sec);
+    const iframe = document.getElementById("preview-iframe") as HTMLIFrameElement;
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({
+        type: "SCROLL_TO_SECTION",
+        section: sec,
+      }, "*");
+    }
+  }, []);
+
+  // Guest list filters and search
+  const [guestSearch, setGuestSearch] = useState("");
+  const [guestFilter, setGuestFilter] = useState<"all" | "Belum Dikirim" | "Terkirim">("all");
+  const [guestSort, setGuestSort] = useState<"lama-baru" | "baru-lama">("lama-baru");
+
+  // Pagination - Guests
+  const [guestPage, setGuestPage] = useState(1);
+  const [guestPageSize, setGuestPageSize] = useState<20 | 30 | 50>(20);
+
+  // RSVP sort, filter & pagination
+  const [rsvpSort, setRsvpSort] = useState<"lama-baru" | "baru-lama">("baru-lama");
+  const [rsvpAttendanceFilter, setRsvpAttendanceFilter] = useState<"semua" | "Hadir" | "Tidak Hadir">("semua");
+  const [rsvpGuestsFilter, setRsvpGuestsFilter] = useState<"semua" | "1" | "2">("semua");
+  const [rsvpPage, setRsvpPage] = useState(1);
+  const [rsvpPageSize, setRsvpPageSize] = useState<20 | 30 | 50>(20);
+  const [rsvpSearch, setRsvpSearch] = useState("");
+
+  // Wishes sort & pagination
+  const [wishSearch, setWishSearch] = useState("");
+  const [wishSort, setWishSort] = useState<"lama-baru" | "baru-lama">("baru-lama");
+  const [wishPage, setWishPage] = useState(1);
+  const [wishPageSize, setWishPageSize] = useState<20 | 30 | 50>(20);
+
+  // Edit/Add Guest Modal state
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
+  const [currentEditingGuest, setCurrentEditingGuest] = useState<Partial<Guest> | null>(null);
+
+  // Bulk Add Guest Modal state
+  const [isBulkGuestModalOpen, setIsBulkGuestModalOpen] = useState(false);
+  const [bulkGuestText, setBulkGuestText] = useState("");
+  const [isSavingBulk, setIsSavingBulk] = useState(false);
+  const [isBulkConfirmOpen, setIsBulkConfirmOpen] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
+
+  const bulkGuestNames = bulkGuestText.split("\n").map(n => n.trim()).filter(n => n.length > 0);
+
+  const handleOpenBulkConfirm = () => {
+    if (bulkGuestNames.length === 0) return;
+    setIsBulkConfirmOpen(true);
+  };
+
+  const handleSaveBulkGuests = async () => {
+    if (bulkGuestNames.length === 0) return;
+    setIsBulkConfirmOpen(false);
+    setIsSavingBulk(true);
+    setBulkProgress({ current: 0, total: bulkGuestNames.length });
+
+    try {
+      // Batch insert via single API call
+      const res = await fetch("/api/admin/guests/bulk-insert", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ names: bulkGuestNames }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setBulkProgress({ current: data.count, total: bulkGuestNames.length });
+        showToast(`${data.count} tamu berhasil ditambahkan! 🎉`, "success");
+        setBulkGuestText("");
+        setIsBulkGuestModalOpen(false);
+        fetchInitialData(true);
+      } else {
+        showToast("Gagal menambahkan tamu. Coba lagi.", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Terjadi kesalahan saat menambahkan tamu.", "error");
+    } finally {
+      setIsSavingBulk(false);
+      setBulkProgress(null);
+    }
+  };
+
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isEditNavOpen, setIsEditNavOpen] = useState(false);
+  const [isCompressing, setIsCompressing] = useState(false);
+
+  // Toast notification system
+  const [toasts, setToasts] = useState<{ id: number; message: string; type: "success" | "error" | "info" }[]>([]);
+  const toastIdRef = useRef(0);
+
+  const showToast = useCallback((message: string, type: "success" | "error" | "info" = "success") => {
+    const id = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+  }, []);
+
+  // Custom confirm modal
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; message: string; onConfirm: () => void } | null>(null);
+
+  const showConfirm = (message: string, onConfirm: () => void) => {
+    setConfirmModal({ open: true, message, onConfirm });
+  };
+
+  const formatSessionTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const handleAutoLogout = useCallback(async (reason = "Sesi login Anda telah berakhir (15 menit). Silakan masukkan kata sandi kembali.") => {
+    try {
+      await fetch("/api/admin/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+    setIsAuthenticated(false);
+    setSessionExpiresAt(null);
+    setRemainingSeconds(0);
+    setIsExtendModalOpen(false);
+    setExtendPassword("");
+    setExtendError("");
+    setHasWarnedModalOpened(false);
+    setSettings(null);
+    setGuests([]);
+    setWishes([]);
+    setSessionExpiredNotice(reason);
+  }, []);
+
+  const handleExtendSession = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!extendPassword.trim()) {
+      setExtendError("Masukkan kata sandi untuk memperpanjang sesi.");
+      return;
+    }
+    setExtendError("");
+    setIsExtendingSession(true);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: extendPassword }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const exp = data.expiresAt || (Date.now() + 15 * 60 * 1000);
+        setSessionExpiresAt(exp);
+        const secs = Math.max(0, Math.floor((exp - Date.now()) / 1000));
+        setRemainingSeconds(secs);
+        setHasWarnedModalOpened(false);
+        setExtendPassword("");
+        setIsExtendModalOpen(false);
+        showToast("✅ Sesi berhasil diperpanjang 15 menit!", "success");
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setExtendError(errData.error || "Kata sandi salah! Silakan coba lagi.");
+      }
+    } catch (err) {
+      setExtendError("Gagal terhubung ke server.");
+    } finally {
+      setIsExtendingSession(false);
+    }
+  };
+
+  // Active session interval timer (1s ticker)
+  useEffect(() => {
+    if (!isAuthenticated || !sessionExpiresAt) return;
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const diff = Math.max(0, Math.floor((sessionExpiresAt - now) / 1000));
+      setRemainingSeconds(diff);
+
+      // Auto popup warning modal when <= 120s (2 minutes) remain
+      if (diff <= 120 && diff > 0 && !hasWarnedModalOpened) {
+        setIsExtendModalOpen(true);
+        setHasWarnedModalOpened(true);
+      }
+
+      // Auto logout when session reaches 0
+      if (diff <= 0) {
+        clearInterval(interval);
+        handleAutoLogout("Sesi login Anda telah berakhir (15 menit). Silakan masukkan kata sandi kembali.");
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, sessionExpiresAt, hasWarnedModalOpened, handleAutoLogout]);
+
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    if (settings) {
+      const iframe = document.getElementById("preview-iframe") as HTMLIFrameElement;
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: "UPDATE_PREVIEW",
+          settings: settings
+        }, "*");
+      }
+    }
+  }, [settings]);
+
+  useEffect(() => {
+    const iframe = document.getElementById("preview-iframe") as HTMLIFrameElement;
+    if (iframe && iframe.contentWindow) {
+      iframe.contentWindow.postMessage({
+        type: "SCROLL_TO_SECTION",
+        section: settingsSection
+      }, "*");
+    }
+  }, [settingsSection]);
+
+  const checkAuth = async () => {
+    try {
+      const res = await fetch("/api/admin/check-auth");
+      if (res.ok) {
+        const data = await res.json();
+        setIsAuthenticated(true);
+        if (data.expiresAt) {
+          setSessionExpiresAt(data.expiresAt);
+          const secs = Math.max(0, Math.floor((data.expiresAt - Date.now()) / 1000));
+          setRemainingSeconds(secs);
+        } else {
+          const exp = Date.now() + 15 * 60 * 1000;
+          setSessionExpiresAt(exp);
+          setRemainingSeconds(15 * 60);
+        }
+        fetchInitialData(false);
+      } else {
+        setIsAuthenticated(false);
+        setLoading(false);
+      }
+    } catch (err) {
+      setIsAuthenticated(false);
+      setLoading(false);
+    } finally {
+      setCheckingAuth(false);
+    }
+  };
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError("");
+    setLoggingIn(true);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: loginPassword }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIsAuthenticated(true);
+        setSessionExpiredNotice("");
+        setLoginPassword("");
+        if (data.expiresAt) {
+          setSessionExpiresAt(data.expiresAt);
+          const secs = Math.max(0, Math.floor((data.expiresAt - Date.now()) / 1000));
+          setRemainingSeconds(secs);
+        } else {
+          const exp = Date.now() + 15 * 60 * 1000;
+          setSessionExpiresAt(exp);
+          setRemainingSeconds(15 * 60);
+        }
+        setHasWarnedModalOpened(false);
+        setLoading(true);
+        fetchInitialData(false);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setLoginError(errData.error || "Password salah!");
+      }
+    } catch (err) {
+      setLoginError("Koneksi gagal!");
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      const res = await fetch("/api/admin/logout", { method: "POST" });
+      if (res.ok) {
+        setIsAuthenticated(false);
+        setSessionExpiresAt(null);
+        setRemainingSeconds(0);
+        setSettings(null);
+        setGuests([]);
+        setWishes([]);
+        setSessionExpiredNotice("");
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchInitialData = async (isRefresh = false) => {
+    if (isRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      // 1. Fetch settings
+      const settingsRes = await fetch("/api/admin/settings");
+      if (settingsRes.status === 401) {
+        handleAutoLogout("Sesi login Anda telah berakhir. Silakan login kembali.");
+        return;
+      }
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        // Ensure dresscode always has default values so handleUpdateField works correctly
+        const mergedSettings = {
+          ...settingsData,
+          dresscode: {
+            enabled: false,
+            title: "Dresscode",
+            text: "",
+            image: "",
+            ...(settingsData.dresscode || {}),
+          },
+        };
+        setSettings(mergedSettings);
+      }
+
+      // 2. Fetch guests
+      const guestsRes = await fetch("/api/admin/guests");
+      if (guestsRes.status === 401) {
+        handleAutoLogout("Sesi login Anda telah berakhir. Silakan login kembali.");
+        return;
+      }
+      if (guestsRes.ok) {
+        const guestsData = await guestsRes.json();
+        setGuests(guestsData);
+      }
+
+      // 3. Fetch Wishes
+      const wishesRes = await fetch("/api/get?limit=1000"); // fetch all wishes
+      if (wishesRes.ok) {
+        const wishesData = await wishesRes.json();
+        setWishes(wishesData.wishes || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      if (isRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleDeleteWish = async (id: string, type: "RSVP" | "Ucapan" = "RSVP") => {
+    showConfirm(`Yakin ingin menghapus ${type.toLowerCase()} ini?`, async () => {
+      try {
+        const res = await fetch(`/api/admin/wishes/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          setWishes(prev => prev.filter(w => w._id !== id));
+          showToast(`${type} berhasil dihapus.`, "success");
+        } else {
+          showToast(`Gagal menghapus ${type.toLowerCase()}.`, "error");
+        }
+      } catch (e) {
+        console.error(e);
+        showToast("Terjadi kesalahan saat menghapus.", "error");
+      }
+    });
+  };
+
+  const handleClearWishes = async () => {
+    showConfirm("⚠️ PERINGATAN: Hapus SEMUA ucapan? Tindakan ini tidak dapat dibatalkan!", async () => {
+      try {
+        const res = await fetch("/api/admin/wishes", { method: "DELETE" });
+        if (res.ok) {
+          setWishes([]);
+          showToast("Semua ucapan berhasil dihapus.", "success");
+        } else {
+          showToast("Gagal menghapus semua ucapan.", "error");
+        }
+      } catch (e) {
+        console.error(e);
+        showToast("Terjadi kesalahan.", "error");
+      }
+    });
+  };
+
+  const handleSaveSettings = async () => {
+    if (!settings) return;
+    setSavingSettings(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Ensure dresscode always has default values after save
+        const mergedData = {
+          ...data,
+          dresscode: {
+            enabled: false,
+            title: "Dresscode",
+            text: "",
+            image: "",
+            ...(data.dresscode || {}),
+          },
+        };
+        setSettings(mergedData);
+        showToast("Pengaturan undangan berhasil disimpan! ✨", "success");
+      } else {
+        showToast("Gagal menyimpan pengaturan.", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Terjadi kesalahan.", "error");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
+  const handleUpdateField = (path: string, value: any) => {
+    if (!settings) return;
+    setSettings((prev: any) => {
+      const updated = { ...prev };
+      const keys = path.split(".");
+      if (keys.length === 3) {
+        updated[keys[0]] = {
+          ...(updated[keys[0]] || {}),
+          [keys[1]]: {
+            ...((updated[keys[0]] || {})[keys[1]] || {}),
+            [keys[2]]: value,
+          },
+        };
+      } else if (keys.length === 2) {
+        updated[keys[0]] = {
+          ...(updated[keys[0]] || {}),
+          [keys[1]]: value,
+        };
+      } else {
+        updated[path] = value;
+      }
+      return updated;
+    });
+  };
+
+  // Kompres gambar di client sebelum upload: max 1200px, JPEG quality 0.75
+  const compressImage = (file: File, maxPx = 1200, quality = 0.75): Promise<File> => {
+    return new Promise((resolve) => {
+      // Jika bukan gambar, langsung return
+      if (!file.type.startsWith("image/")) { resolve(file); return; }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width <= maxPx && height <= maxPx) {
+          // Sudah kecil, tetap kompres ke JPEG
+        }
+        const scale = Math.min(1, maxPx / Math.max(width, height));
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { resolve(file); return; }
+            const compressed = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+            resolve(compressed);
+          },
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, path: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Kompres jika gambar (bukan musik)
+    const isImage = file.type.startsWith("image/");
+    const fileToUpload = isImage ? await compressImage(file) : file;
+
+    const formData = new FormData();
+    formData.append("file", fileToUpload);
+
+    try {
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        handleUpdateField(path, data.url);
+        showToast(`File ${file.name} berhasil diunggah!`, "success");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showToast(errorData.error || "Gagal mengunggah file.", "error");
+      }
+    } catch (error: any) {
+      console.error(error);
+      showToast(error.message || "Error mengunggah file.", "error");
+    }
+  };
+
+  const handleAddBankAccount = () => {
+    if (!settings) return;
+    const currentGift = settings.weddingGift || { enabled: true, qrisImage: "", qrisOwnerName: "", bankAccounts: [] };
+    const newAccounts = [...(currentGift.bankAccounts || []), { bankName: "BCA", accountNumber: "", accountHolderName: "" }];
+    handleUpdateField("weddingGift.bankAccounts", newAccounts);
+  };
+
+  const handleUpdateBankAccount = (index: number, field: string, value: any) => {
+    if (!settings) return;
+    const currentGift = settings.weddingGift || { enabled: true, qrisImage: "", qrisOwnerName: "", bankAccounts: [] };
+    const newAccounts = (currentGift.bankAccounts || []).map((acc: any, idx: number) => {
+      if (idx === index) {
+        return { ...acc, [field]: value };
+      }
+      return acc;
+    });
+    handleUpdateField("weddingGift.bankAccounts", newAccounts);
+  };
+
+  const handleDeleteBankAccount = (index: number) => {
+    if (!settings) return;
+    const currentGift = settings.weddingGift || { enabled: true, qrisImage: "", qrisOwnerName: "", bankAccounts: [] };
+    const newAccounts = (currentGift.bankAccounts || []).filter((_: any, idx: number) => idx !== index);
+    handleUpdateField("weddingGift.bankAccounts", newAccounts);
+  };
+
+  const handleQRISUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // QRIS tidak perlu resize agresif, kompres ringan (max 800px, q 0.85)
+    const fileToUpload = await compressImage(file, 800, 0.85);
+    const formData = new FormData();
+    formData.append("file", fileToUpload);
+
+    try {
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        handleUpdateField("weddingGift.qrisImage", data.url);
+        showToast("Gambar QRIS berhasil diunggah!", "success");
+      } else {
+        showToast("Gagal mengunggah QRIS.", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Error mengunggah QRIS.", "error");
+    }
+  };
+
+  const handleDeleteQRIS = () => {
+    handleUpdateField("weddingGift.qrisImage", "");
+  };
+
+  const handleUpdateGalleryImage = (index: number, value: string) => {
+    if (!settings) return;
+    setSettings((prev: any) => {
+      const updatedImages = [...(prev.galleryImages || [])];
+      while (updatedImages.length < 9) {
+        updatedImages.push("");
+      }
+      updatedImages[index] = value;
+      return {
+        ...prev,
+        galleryImages: updatedImages
+      };
+    });
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Kompres galeri: max 1000px, JPEG 0.75
+    const fileToUpload = await compressImage(file, 1000, 0.75);
+    const formData = new FormData();
+    formData.append("file", fileToUpload);
+
+    try {
+      const res = await fetch("/api/admin/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        handleUpdateGalleryImage(index, data.url);
+        showToast(`Foto ${file.name} berhasil diunggah!`, "success");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        showToast(errorData.error || "Gagal mengunggah foto.", "error");
+      }
+    } catch (error: any) {
+      console.error(error);
+      showToast(error.message || "Error mengunggah foto.", "error");
+    }
+  };
+
+  // Guest Management Methods
+  const handleOpenGuestModal = (guest: Partial<Guest> | null = null) => {
+    setCurrentEditingGuest(guest || { name: "", phone: "", status: "Belum Dikirim" });
+    setIsGuestModalOpen(true);
+  };
+
+  const handleSaveGuest = async () => {
+    if (!currentEditingGuest || !currentEditingGuest.name) {
+      showToast("Nama tamu harus diisi!", "error");
+      return;
+    }
+
+    try {
+      const isEdit = !!currentEditingGuest._id;
+      const url = isEdit ? `/api/admin/guests/${currentEditingGuest._id}` : "/api/admin/guests";
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(currentEditingGuest),
+      });
+
+      if (res.ok) {
+        const saved = await res.json();
+        if (isEdit) {
+          setGuests(prev => prev.map(g => g._id === saved._id ? saved : g));
+          showToast("Data tamu berhasil diperbarui.", "success");
+        } else {
+          setGuests(prev => [...prev, saved]);
+          showToast("Tamu baru berhasil ditambahkan! 🎉", "success");
+        }
+        setIsGuestModalOpen(false);
+        setCurrentEditingGuest(null);
+      } else {
+        showToast("Gagal menyimpan data tamu.", "error");
+      }
+    } catch (error) {
+      console.error(error);
+      showToast("Error menyimpan tamu.", "error");
+    }
+  };
+
+  const handleDeleteGuest = async (id: string) => {
+    showConfirm("Apakah Anda yakin ingin menghapus tamu ini?", async () => {
+      try {
+        const res = await fetch(`/api/admin/guests/${id}`, { method: "DELETE" });
+        if (res.ok) {
+          setGuests(prev => prev.filter(g => g._id !== id));
+          showToast("Tamu berhasil dihapus.", "success");
+        } else {
+          showToast("Gagal menghapus tamu.", "error");
+        }
+      } catch (error) {
+        console.error(error);
+        showToast("Terjadi kesalahan saat menghapus.", "error");
+      }
+    });
+  };
+
+  const handleBulkDeleteGuests = async () => {
+    if (selectedGuests.length === 0) return;
+    showConfirm(`Apakah Anda yakin ingin menghapus ${selectedGuests.length} tamu?`, async () => {
+      try {
+        const res = await fetch("/api/admin/guests/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: selectedGuests }),
+        });
+        if (res.ok) {
+          setGuests(prev => prev.filter(g => !selectedGuests.includes(g._id)));
+          setSelectedGuests([]);
+          showToast(`${selectedGuests.length} tamu berhasil dihapus.`, "success");
+        } else {
+          showToast("Gagal menghapus tamu.", "error");
+        }
+      } catch (error) {
+        console.error(error);
+        showToast("Terjadi kesalahan saat menghapus massal.", "error");
+      }
+    });
+  };
+
+  const handleBulkDeleteWishes = async (ids: string[], setSelection: React.Dispatch<React.SetStateAction<string[]>>) => {
+    if (ids.length === 0) return;
+    showConfirm(`Apakah Anda yakin ingin menghapus ${ids.length} data?`, async () => {
+      try {
+        const res = await fetch("/api/admin/wishes/bulk", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids }),
+        });
+        if (res.ok) {
+          setWishes(prev => prev.filter(w => !ids.includes(w._id)));
+          setSelection([]);
+          showToast(`${ids.length} data berhasil dihapus.`, "success");
+        } else {
+          showToast("Gagal menghapus data.", "error");
+        }
+      } catch (error) {
+        console.error(error);
+        showToast("Terjadi kesalahan saat menghapus massal.", "error");
+      }
+    });
+  };
+
+  const formatPhoneNumber = (phone: string) => {
+    let clean = phone.replace(/\D/g, "");
+    if (clean.startsWith("0")) {
+      clean = "62" + clean.slice(1);
+    }
+    return clean;
+  };
+
+  const formatEventDateStr = (dateStr?: string) => {
+    if (!dateStr) return "Minggu, 11 Oktober 2026";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const buildWhatsAppMsg = (guest: Guest): string => {
+    if (!settings) return "";
+    const origin = window.location.origin;
+    const safeName = guest.name.toLowerCase().replace(/&/g, '_and_');
+    const inviteLink = `${origin}/?to=${encodeURIComponent(safeName)}`;
+    let m = settings.invitationTemplate || "";
+    m = m.replace(/{nama}/g, guest.name);
+    m = m.replace(/{link}/g, inviteLink);
+    m = m.replace(/{tanggal}/g, formatEventDateStr(settings.eventDate));
+    m = m.replace(/{tanggal_acara}/g, formatEventDateStr(settings.eventDate));
+    m = m.replace(/{hari_tanggal}/g, formatEventDateStr(settings.eventDate));
+    return m;
+  };
+
+  // Gunakan api.whatsapp.com/send LANGSUNG — tidak lewat wa.me redirect yg corrupt emoji
+  const getWhatsAppLink = (guest: Guest) => {
+    if (!settings) return "";
+    const phone = formatPhoneNumber(guest.phone);
+    const encodedMsg = encodeURIComponent(buildWhatsAppMsg(guest));
+    if (phone) {
+      // Ada nomor HP → buka langsung ke kontak tersebut
+      return `https://api.whatsapp.com/send?phone=${phone}&text=${encodedMsg}`;
+    }
+    // Tidak ada nomor HP → tampil landing page "Share on WhatsApp"
+    return `https://api.whatsapp.com/send?text=${encodedMsg}`;
+  };
+
+  const handleSendWhatsApp = async (guest: Guest) => {
+    // Pakai wa.me untuk semua device → tampil landing page "Share on WhatsApp"
+    // Emoji aman karena encodeWhatsAppText tidak meng-encode karakter Unicode
+    const waLink = getWhatsAppLink(guest);
+    window.open(waLink, "_blank");
+
+    try {
+      const res = await fetch(`/api/admin/guests/${guest._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Terkirim", sentAt: new Date().toISOString() }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setGuests(prev => prev.map(g => g._id === guest._id ? updated : g));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleCopyLink = (name: string) => {
+    const origin = window.location.origin;
+    const safeName = name.toLowerCase().replace(/&/g, '_and_');
+    const inviteLink = `${origin}/?to=${encodeURIComponent(safeName)}`;
+    navigator.clipboard.writeText(inviteLink);
+    showToast("Link undangan berhasil disalin! 📋", "success");
+  };
+
+  const handleCopyWATemplate = async (guest: Guest) => {
+    const msg = buildWhatsAppMsg(guest);
+    if (!msg) {
+      showToast("Template WA belum diatur. Cek tab Pengaturan → Template.", "error");
+      return;
+    }
+    navigator.clipboard.writeText(msg);
+    showToast("Template WA berhasil disalin! 📲", "success");
+
+    // Update status tamu jadi Terkirim (sama seperti tombol Kirim WA)
+    try {
+      const res = await fetch(`/api/admin/guests/${guest._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Terkirim", sentAt: new Date().toISOString() }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setGuests(prev => prev.map(g => g._id === guest._id ? updated : g));
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Wishes/RSVP export
+  const exportWishesToCSV = () => {
+    if (wishes.length === 0) return;
+
+    const headers = ["Nama", "Kehadiran", "Jumlah Tamu", "Ucapan", "Tanggal"];
+    const rows = wishes.map(w => [
+      w.name,
+      w.attendance,
+      w.guests.toString(),
+      w.message.replace(/"/g, '""'),
+      new Date(w.createdAt).toLocaleString()
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + [headers.join(","), ...rows.map(e => e.map(val => `"${val}"`).join(","))].join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "rsvp_wishes.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Excel export for all tabs
+  const exportToExcel = (type: "guests" | "rsvp" | "wishes") => {
+    let sheetData: Record<string, string | number>[] = [];
+    let fileName = "";
+
+    if (type === "guests") {
+      fileName = "daftar_tamu.xlsx";
+      sheetData = guests.map((g, i) => ({
+        "No": i + 1,
+        "Nama Tamu": g.name,
+        "Nomor WhatsApp": g.phone || "-",
+        "Status Kirim": g.status || "Belum Dikirim",
+        "Tanggal Kirim": g.sentAt ? new Date(g.sentAt).toLocaleString("id-ID") : "-",
+      }));
+    } else if (type === "rsvp") {
+      fileName = "data_rsvp.xlsx";
+      sheetData = sortedRsvps.map((w, i) => ({
+        "No": i + 1,
+        "Nama": w.name,
+        "Kehadiran": w.attendance,
+        "Jumlah Tamu": Number(w.guests) || 0,
+        "Tanggal Respon": new Date(w.createdAt).toLocaleString("id-ID"),
+      }));
+    } else if (type === "wishes") {
+      fileName = "data_ucapan.xlsx";
+      sheetData = sortedWishes.map((w, i) => ({
+        "No": i + 1,
+        "Nama": w.name,
+        "Ucapan": w.message,
+        "Tanggal": new Date(w.createdAt).toLocaleString("id-ID"),
+      }));
+    }
+
+    const ws = XLSX.utils.json_to_sheet(sheetData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, type === "guests" ? "Tamu" : type === "rsvp" ? "RSVP" : "Ucapan");
+    XLSX.writeFile(wb, fileName);
+  };
+
+  // Filtered & sorted Guests list
+  const filteredGuests = guests
+    .filter(guest => {
+      const matchesSearch = guest.name.toLowerCase().includes(guestSearch.toLowerCase()) ||
+        guest.phone.includes(guestSearch);
+      const matchesFilter = guestFilter === "all" || guest.status === guestFilter;
+      return matchesSearch && matchesFilter;
+    })
+    .sort((a, b) => {
+      // Fall back to _id comparison (MongoDB ObjectId encodes creation time)
+      const aTime = (a as any).createdAt ? new Date((a as any).createdAt).getTime() : 0;
+      const bTime = (b as any).createdAt ? new Date((b as any).createdAt).getTime() : 0;
+      const aVal = aTime || a._id;
+      const bVal = bTime || b._id;
+      if (guestSort === "baru-lama") return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+      return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+    });
+
+  const guestTotalPages = Math.max(1, Math.ceil(filteredGuests.length / guestPageSize));
+  const guestPageClamped = Math.min(guestPage, guestTotalPages);
+  const pagedGuests = filteredGuests.slice((guestPageClamped - 1) * guestPageSize, guestPageClamped * guestPageSize);
+
+  // RSVP filtered, sorted & paged
+  const filteredRsvps = wishes.filter(w => {
+    if (rsvpSearch.trim() && !(w.name || "").toLowerCase().includes(rsvpSearch.trim().toLowerCase())) return false;
+    if (rsvpAttendanceFilter !== "semua" && w.attendance !== rsvpAttendanceFilter) return false;
+    if (rsvpGuestsFilter === "1" && Number(w.guests) !== 1) return false;
+    if (rsvpGuestsFilter === "2" && Number(w.guests) !== 2) return false;
+    return true;
+  });
+  const sortedRsvps = [...filteredRsvps].sort((a, b) => {
+    const aT = new Date(a.createdAt).getTime();
+    const bT = new Date(b.createdAt).getTime();
+    return rsvpSort === "baru-lama" ? bT - aT : aT - bT;
+  });
+  const rsvpTotalPages = Math.max(1, Math.ceil(sortedRsvps.length / rsvpPageSize));
+  const rsvpPageClamped = Math.min(rsvpPage, rsvpTotalPages);
+  const pagedRsvps = sortedRsvps.slice((rsvpPageClamped - 1) * rsvpPageSize, rsvpPageClamped * rsvpPageSize);
+
+  // Wishes sorted & paged (only with non-empty message)
+  const wishMessageCount = wishes.filter(w => w.message && w.message.trim() !== "").length;
+  const validWishes = wishes.filter(w => {
+    if (!w.message || w.message.trim() === "") return false;
+    const q = wishSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (w.name || "").toLowerCase().includes(q) || w.message.toLowerCase().includes(q);
+  });
+  const sortedWishes = [...validWishes].sort((a, b) => {
+    const aT = new Date(a.createdAt).getTime();
+    const bT = new Date(b.createdAt).getTime();
+    return wishSort === "baru-lama" ? bT - aT : aT - bT;
+  });
+  const wishTotalPages = Math.max(1, Math.ceil(sortedWishes.length / wishPageSize));
+  const wishPageClamped = Math.min(wishPage, wishTotalPages);
+  const pagedWishes = sortedWishes.slice((wishPageClamped - 1) * wishPageSize, wishPageClamped * wishPageSize);
+
+  // Pagination page numbers with ellipsis
+  const getPaginationPages = (current: number, total: number): (number | "...")[] => {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const pages: (number | "...")[] = [];
+    pages.push(1);
+    if (current > 3) pages.push("...");
+    for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i);
+    if (current < total - 2) pages.push("...");
+    pages.push(total);
+    return pages;
+  };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-[#0d0d0d] flex items-center justify-center text-white font-legan">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-t-white border-white/20 rounded-full animate-spin mx-auto"></div>
+          <p className="text-sm tracking-widest text-[#8c8c8c] uppercase animate-pulse">Menghubungkan Sesi...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // LOGIN SCREEN
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-white flex items-center justify-center p-4 font-legan">
+        <div className="w-full max-w-md bg-neutral-900/60 backdrop-blur-xl border border-neutral-800/80 p-8 rounded-2xl shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+
+          <div className="text-center space-y-2 mb-8">
+            <div className="h-12 w-12 bg-white text-black font-bold flex items-center justify-center rounded-xl text-xl shadow-lg mx-auto mb-4">
+              <FaLock className="w-5 h-5 text-neutral-950" />
+            </div>
+            <h1 className="font-ovo text-xl tracking-wider uppercase">DASHBOARD AKSES</h1>
+            <p className="text-xs text-neutral-400 tracking-wider">Silakan masukkan password untuk mengelola undangan pernikahan.</p>
+          </div>
+
+          {sessionExpiredNotice && (
+            <div className="mb-6 p-3.5 rounded-xl bg-amber-950/40 border border-amber-600/50 text-amber-200 text-xs leading-relaxed text-center flex flex-col items-center gap-y-1 shadow-lg animate-fadeIn">
+              <div className="flex items-center gap-x-1.5 font-semibold text-amber-300">
+                <FaHourglassHalf className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                <span>Pemberitahuan Sesi</span>
+              </div>
+              <span>{sessionExpiredNotice}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleLoginSubmit} className="space-y-6">
+            <div>
+              <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Kata Sandi (Password)</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 pr-10 text-white focus:outline-none focus:border-white transition-all text-sm tracking-widest text-center font-mono"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-white transition"
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+              {loginError && (
+                <p className="text-red-400 text-xs mt-2 text-center bg-red-950/20 border border-red-900/20 py-1.5 rounded-lg font-mono">
+                  {loginError}
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loggingIn}
+              className="w-full py-2.5 bg-white text-black hover:bg-neutral-200 transition font-bold rounded-lg text-sm disabled:opacity-50 flex items-center justify-center gap-x-2 shadow-lg"
+            >
+              {loggingIn ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-t-black border-black/20 rounded-full animate-spin"></div>
+                  <span>Verifikasi...</span>
+                </>
+              ) : (
+                <span>Masuk Dashboard</span>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-[10px] text-neutral-500 uppercase tracking-widest">Weddingly Security System • 15 Menit Sesi</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // MAIN DASHBOARD (AUTHENTICATED)
+  return (
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden flex flex-col bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-950 text-white font-legan">
+      {/* HEADER NAVBAR */}
+      <header className="border-b border-neutral-800/80 bg-neutral-950/60 backdrop-blur-xl sticky top-0 z-30 shrink-0 h-16">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-x-3">
+            <div className="h-9 w-9 bg-white text-black font-bold flex items-center justify-center rounded-lg text-lg shadow-lg">
+              W
+            </div>
+            <div>
+              <h1 className="font-ovo text-lg tracking-wider">WEDDINGLY ADMIN</h1>
+              <p className="text-[10px] text-neutral-400 tracking-widest -mt-1 font-mono uppercase">Control Room</p>
+            </div>
+          </div>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center gap-x-2">
+            <button
+              onClick={() => setActiveTab("settings")}
+              className={`flex items-center gap-x-2 px-4 py-2 rounded-lg text-sm transition-all duration-300 ${activeTab === "settings"
+                ? "bg-white text-black font-semibold shadow-md"
+                : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                }`}
+            >
+              <FaCogs className="w-4 h-4" />
+              <span>Pengaturan Undangan</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("guests")}
+              className={`flex items-center gap-x-2 px-4 py-2 rounded-lg text-sm transition-all duration-300 ${activeTab === "guests"
+                ? "bg-white text-black font-semibold shadow-md"
+                : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                }`}
+            >
+              <FaUsers className="w-4 h-4" />
+              <span>Daftar Tamu</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("rsvp")}
+              className={`flex items-center gap-x-2 px-4 py-2 rounded-lg text-sm transition-all duration-300 ${activeTab === "rsvp"
+                ? "bg-white text-black font-semibold shadow-md"
+                : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                }`}
+            >
+              <FaCheckCircle className="w-4 h-4" />
+              <span>RSVP</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("wishes")}
+              className={`flex items-center gap-x-2 px-4 py-2 rounded-lg text-sm transition-all duration-300 ${activeTab === "wishes"
+                ? "bg-white text-black font-semibold shadow-md"
+                : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                }`}
+            >
+              <FaComments className="w-4 h-4" />
+              <span>Ucapan</span>
+              {wishMessageCount > 0 && (
+                <span className="bg-red-500 text-white text-[10px] h-5 px-1.5 flex items-center justify-center rounded-full font-bold">
+                  {wishMessageCount}
+                </span>
+              )}
+            </button>
+
+            <span className="w-[1px] h-6 bg-neutral-800 mx-2"></span>
+
+            {/* SESSION TIMER BADGE */}
+            <button
+              onClick={() => {
+                setExtendError("");
+                setExtendPassword("");
+                setIsExtendModalOpen(true);
+              }}
+              className={`flex items-center gap-x-2 px-3 py-1.5 rounded-lg text-xs font-mono transition-all duration-300 border shadow-sm ${
+                remainingSeconds <= 120
+                  ? "bg-red-950/80 border-red-600/80 text-red-300 animate-pulse hover:bg-red-900/80"
+                  : remainingSeconds <= 300
+                  ? "bg-amber-950/60 border-amber-600/60 text-amber-300 hover:bg-amber-900/60"
+                  : "bg-neutral-900/80 border-neutral-800 text-neutral-300 hover:text-white hover:border-neutral-700"
+              }`}
+              title="Sisa Waktu Sesi Login (Klik untuk perpanjang)"
+            >
+              <FaHourglassHalf
+                className={`w-3.5 h-3.5 ${
+                  remainingSeconds <= 120
+                    ? "text-red-400 animate-spin"
+                    : remainingSeconds <= 300
+                    ? "text-amber-400"
+                    : "text-emerald-400"
+                }`}
+              />
+              <span className="font-semibold">{formatSessionTime(remainingSeconds)}</span>
+            </button>
+
+            <span className="w-[1px] h-6 bg-neutral-800 mx-2"></span>
+
+            {/* TOMBOL KOMPRES FOTO LAMA */}
+            <button
+              onClick={async () => {
+                setIsCompressing(true);
+                try {
+                  const res = await fetch("/api/admin/compress-images", { method: "POST" });
+                  const data = await res.json();
+                  if (data.success) {
+                    showToast(`✅ Kompres selesai: ${data.summary.compressed} foto dikompres, ${data.summary.skipped} dilewati.`, "success");
+                    fetchInitialData(true); // reload settings
+                  } else {
+                    showToast(data.error || "Gagal kompres foto.", "error");
+                  }
+                } catch (e) {
+                  showToast("Error saat kompres foto.", "error");
+                } finally {
+                  setIsCompressing(false);
+                }
+              }}
+              disabled={isCompressing}
+              className="flex items-center gap-x-2 px-4 py-2 rounded-lg text-sm text-neutral-400 hover:text-white hover:bg-neutral-900 transition-all duration-300 border border-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Kompres semua foto lama agar loading lebih cepat"
+            >
+              <FaImages className={`w-4 h-4 ${isCompressing ? "animate-pulse" : ""}`} />
+              <span>{isCompressing ? "Mengompres..." : "Kompres Foto"}</span>
+            </button>
+
+            <a
+              href="/"
+              target="_blank"
+              className="flex items-center gap-x-2 px-4 py-2 rounded-lg text-sm text-neutral-400 hover:text-white hover:bg-neutral-900 transition-all duration-300 border border-neutral-800"
+              title="Lihat Undangan (Buka Tab Baru)"
+            >
+              <FaEye className="w-4 h-4" />
+              <span>Lihat Undangan</span>
+            </a>
+
+            <span className="w-[1px] h-6 bg-neutral-800 mx-2"></span>
+
+            <button
+              onClick={() => setIsLogoutModalOpen(true)}
+              className="flex items-center gap-x-2 px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-950/20 rounded-lg text-sm transition-all"
+              title="Keluar (Logout)"
+            >
+              <FaSignOutAlt className="w-4 h-4" />
+              <span>Keluar</span>
+            </button>
+          </nav>
+
+          {/* Mobile Menu Button (Garis 3) */}
+          <div className="lg:hidden flex items-center gap-x-3">
+            {/* Mobile quick session timer indicator */}
+            <button
+              onClick={() => {
+                setExtendError("");
+                setExtendPassword("");
+                setIsExtendModalOpen(true);
+              }}
+              className={`flex items-center gap-x-1.5 px-2.5 py-1 rounded-lg text-xs font-mono border ${
+                remainingSeconds <= 120
+                  ? "bg-red-950/80 border-red-600/80 text-red-300 animate-pulse"
+                  : remainingSeconds <= 300
+                  ? "bg-amber-950/60 border-amber-600/60 text-amber-300"
+                  : "bg-neutral-900/80 border-neutral-800 text-neutral-300"
+              }`}
+            >
+              <FaHourglassHalf className="w-3 h-3 text-amber-400" />
+              <span>{formatSessionTime(remainingSeconds)}</span>
+            </button>
+
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="text-neutral-400 hover:text-white p-2 rounded-lg focus:outline-none transition-all duration-200"
+              aria-label="Toggle Menu"
+            >
+              {isMobileMenuOpen ? (
+                <FaTimesCircle className="w-6 h-6 text-white" />
+              ) : (
+                <FaBars className="w-6 h-6" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu Dropdown */}
+        <div
+          className={`lg:hidden border-t border-neutral-800 bg-neutral-950/95 backdrop-blur-xl px-6 py-4 space-y-3 transition-all duration-300 ease-in-out origin-top overflow-hidden ${isMobileMenuOpen
+            ? "max-h-[550px] opacity-100 translate-y-0 visible"
+            : "max-h-0 opacity-0 -translate-y-4 invisible"
+            }`}
+        >
+          {/* Mobile Session Timer */}
+          <button
+            onClick={() => {
+              setExtendError("");
+              setExtendPassword("");
+              setIsExtendModalOpen(true);
+              setIsMobileMenuOpen(false);
+            }}
+            className={`flex items-center justify-between w-full px-4 py-3 rounded-lg text-xs font-mono border transition-all ${
+              remainingSeconds <= 120
+                ? "bg-red-950/80 border-red-600/80 text-red-300 animate-pulse"
+                : remainingSeconds <= 300
+                ? "bg-amber-950/60 border-amber-600/60 text-amber-300"
+                : "bg-neutral-900/80 border-neutral-800 text-neutral-300 hover:text-white"
+            }`}
+          >
+            <span className="flex items-center gap-x-2">
+              <FaHourglassHalf
+                className={`w-3.5 h-3.5 ${
+                  remainingSeconds <= 120
+                    ? "text-red-400"
+                    : remainingSeconds <= 300
+                    ? "text-amber-400"
+                    : "text-emerald-400"
+                }`}
+              />
+              <span>Sisa Waktu Sesi:</span>
+            </span>
+            <span className="font-bold text-sm">{formatSessionTime(remainingSeconds)} (Perpanjang)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("settings");
+              setIsMobileMenuOpen(false);
+            }}
+            className={`flex items-center gap-x-3 w-full px-4 py-3 rounded-lg text-sm transition-all ${activeTab === "settings"
+              ? "bg-white text-black font-semibold shadow-md"
+              : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+              }`}
+          >
+            <FaCogs className="w-5 h-5" />
+            <span>Pengaturan Undangan</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("guests");
+              setIsMobileMenuOpen(false);
+            }}
+            className={`flex items-center gap-x-3 w-full px-4 py-3 rounded-lg text-sm transition-all ${activeTab === "guests"
+              ? "bg-white text-black font-semibold shadow-md"
+              : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+              }`}
+          >
+            <FaUsers className="w-5 h-5" />
+            <span>Daftar Tamu</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("rsvp");
+              setIsMobileMenuOpen(false);
+            }}
+            className={`flex items-center gap-x-3 w-full px-4 py-3 rounded-lg text-sm transition-all ${activeTab === "rsvp"
+              ? "bg-white text-black font-semibold shadow-md"
+              : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+              }`}
+          >
+            <FaCheckCircle className="w-5 h-5" />
+            <span>RSVP</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("wishes");
+              setIsMobileMenuOpen(false);
+            }}
+            className={`flex items-center gap-x-3 w-full px-4 py-3 rounded-lg text-sm transition-all ${activeTab === "wishes"
+              ? "bg-white text-black font-semibold shadow-md"
+              : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+              }`}
+          >
+            <FaComments className="w-5 h-5" />
+            <span>Ucapan</span>
+            {wishMessageCount > 0 && (
+              <span className="bg-red-500 text-white text-[10px] h-5 px-1.5 flex items-center justify-center rounded-full font-bold ml-auto">
+                {wishMessageCount}
+              </span>
+            )}
+          </button>
+
+          <hr className="border-neutral-800" />
+
+          <a
+            href="/"
+            target="_blank"
+            className="flex items-center gap-x-3 w-full px-4 py-3 rounded-lg text-sm text-neutral-400 hover:text-white hover:bg-neutral-900 transition-all border border-neutral-800"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <FaEye className="w-5 h-5" />
+            <span>Lihat Undangan</span>
+          </a>
+
+          <button
+            onClick={() => {
+              setIsLogoutModalOpen(true);
+              setIsMobileMenuOpen(false);
+            }}
+            className="flex items-center gap-x-3 w-full px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-950/20 rounded-lg text-sm transition-all"
+          >
+            <FaSignOutAlt className="w-5 h-5" />
+            <span>Keluar</span>
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl w-full mx-auto px-6 my-4 flex-1 lg:min-h-0 lg:overflow-hidden flex flex-col">
+
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-32 space-y-4">
+            <div className="w-16 h-16 border-4 border-t-white border-white/20 rounded-full animate-spin mx-auto"></div>
+            <p className="text-sm tracking-widest text-[#8c8c8c] uppercase animate-pulse">Memuat Data...</p>
+          </div>
+        ) : (
+          <>
+            {/* TAB 1: SETTINGS / CUSTOMIZATION */}
+            {activeTab === "settings" && settings && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:h-full lg:min-h-0 items-start lg:items-stretch flex-1">
+                {/* Mobile View Navigation Toggle for settingsSection */}
+                <div className="lg:hidden flex items-center justify-between bg-neutral-900/60 border border-neutral-800/80 p-4 rounded-xl backdrop-blur-md w-full">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-neutral-400 uppercase tracking-widest block font-bold">Navigasi Edit</span>
+                    <span className="text-sm font-semibold text-white uppercase tracking-wider mt-0.5">
+                      {settingsSection === "general" && "Informasi Umum"}
+                      {settingsSection === "groomBride" && "Mempelai (Groom & Bride)"}
+                      {settingsSection === "loveJourney" && "Kisah Cinta (Love Journey)"}
+                      {settingsSection === "events" && "Jadwal Acara & Maps"}
+                      {settingsSection === "livestreaming" && "Live Streaming"}
+                      {settingsSection === "prewedding" && "Video Prewedding"}
+                      {settingsSection === "dresscode" && "Dresscode"}
+                      {settingsSection === "media" && "Lagu & Foto (Media)"}
+                      {settingsSection === "weddingGift" && "Hadiah / Amplop Digital"}
+                      {settingsSection === "penutup" && "Penutup & Ucapan Terima Kasih"}
+                      {settingsSection === "template" && "Template Undangan WA"}
+                      {settingsSection === "popupTemplate" && "Template Tulisan Popup"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setIsEditNavOpen(true)}
+                    className="flex items-center gap-x-2 bg-white text-black hover:bg-neutral-200 transition font-bold px-4 py-2 rounded-lg text-xs shadow-md"
+                  >
+                    <FaBars className="w-3.5 h-3.5" />
+                    <span>Pilih Bagian</span>
+                  </button>
+                </div>
+
+                {/* Drawer Overlay for Mobile Settings Navigation */}
+                <div className={`fixed inset-0 z-50 lg:hidden flex transition-all duration-300 ${isEditNavOpen ? "pointer-events-auto visible" : "pointer-events-none invisible"
+                  }`}>
+                  {/* Backdrop */}
+                  <div
+                    className={`fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isEditNavOpen ? "opacity-100" : "opacity-0"
+                      }`}
+                    onClick={() => setIsEditNavOpen(false)}
+                  />
+
+                  {/* Drawer Content */}
+                  <div className={`relative flex flex-col w-80 max-w-[80vw] h-full bg-neutral-950 border-r border-neutral-800/80 p-6 shadow-2xl transition-transform duration-300 ease-in-out ${isEditNavOpen ? "translate-x-0" : "-translate-x-full"
+                    }`}>
+                    <div className="flex items-center justify-between mb-8">
+                      <h3 className="text-sm uppercase text-neutral-400 font-bold tracking-wider">Navigasi Edit</h3>
+                      <button
+                        onClick={() => setIsEditNavOpen(false)}
+                        className="text-neutral-400 hover:text-white p-1"
+                      >
+                        <FaTimesCircle className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-2">
+                      <button
+                        onClick={() => {
+                          handleSelectSection("general");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "general"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Informasi Umum
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("groomBride");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "groomBride"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Mempelai (Groom &amp; Bride)
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("loveJourney");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "loveJourney"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Kisah Cinta (Love Journey)
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("events");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "events"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Jadwal Acara &amp; Maps
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("livestreaming");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "livestreaming"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Live Streaming
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("prewedding");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "prewedding"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Video Prewedding
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("dresscode");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "dresscode"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Dresscode
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("media");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "media"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Lagu &amp; Foto (Media)
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("weddingGift");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "weddingGift"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Hadiah / Amplop Digital
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("penutup");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "penutup"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Penutup &amp; Ucapan Terima Kasih
+                      </button>
+
+                      <div className="h-px bg-neutral-800/60 my-2" />
+
+                      <button
+                        onClick={() => {
+                          handleSelectSection("template");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "template"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-500 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Template Undangan WA
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleSelectSection("popupTemplate");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "popupTemplate"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-500 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Template Tulisan Popup
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sidebar navigation for settings - DESKTOP ONLY */}
+                <div className="hidden lg:block lg:col-span-3 space-y-2 lg:h-full lg:overflow-y-auto pr-1">
+                  <h3 className="text-xs uppercase text-neutral-400 font-bold px-3 mb-4 tracking-wider">Navigasi Edit</h3>
+                  <button
+                    onClick={() => handleSelectSection("general")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "general"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Informasi Umum
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("groomBride")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "groomBride"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Mempelai (Groom &amp; Bride)
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("loveJourney")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "loveJourney"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Kisah Cinta (Love Journey)
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("events")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "events"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Jadwal Acara &amp; Maps
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("livestreaming")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "livestreaming"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Live Streaming
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("prewedding")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "prewedding"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Video Prewedding
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("dresscode")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "dresscode"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Dresscode
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("media")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "media"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Lagu &amp; Foto (Media)
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("weddingGift")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "weddingGift"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Hadiah / Amplop Digital
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("penutup")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "penutup"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Penutup &amp; Ucapan Terima Kasih
+                  </button>
+
+                  <div className="h-px bg-neutral-800/40 my-1" />
+
+                  <button
+                    onClick={() => handleSelectSection("template")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "template"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-500 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Template Undangan WA
+                  </button>
+
+                  <button
+                    onClick={() => handleSelectSection("popupTemplate")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "popupTemplate"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-500 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Template Tulisan Popup
+                  </button>
+                </div>
+
+                {/* Form settings */}
+                <div className="lg:col-span-5 space-y-6 lg:h-full lg:overflow-y-auto pr-2 pb-8">
+                  <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-2xl p-6 backdrop-blur-md">
+
+                    {/* SECTION: GENERAL */}
+                    {settingsSection === "general" && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-ovo border-b border-neutral-800 pb-3 text-white uppercase tracking-wider">Informasi Umum</h2>
+
+                        <div>
+                          <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Nama Pasangan (Main Title)</label>
+                          <input
+                            type="text"
+                            value={settings.coupleNames}
+                            onChange={(e) => handleUpdateField("coupleNames", e.target.value)}
+                            className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-white transition-all text-sm"
+                          />
+                        </div>
+
+                        <div className="border-t border-neutral-800/60 pt-6 space-y-4">
+                          <h3 className="text-sm font-semibold uppercase text-neutral-300">Bible Verse Slide</h3>
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Ayat Alkitab / Kutipan</label>
+                            <input
+                              type="text"
+                              value={settings.bibleVerse}
+                              onChange={(e) => handleUpdateField("bibleVerse", e.target.value)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-white transition-all text-sm mb-4"
+                            />
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Isi Kutipan</label>
+                            <textarea
+                              rows={4}
+                              value={settings.bibleVerseContent}
+                              onChange={(e) => handleUpdateField("bibleVerseContent", e.target.value)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-white transition-all text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION: LOVE JOURNEY (KISAH CINTA) */}
+                    {settingsSection === "loveJourney" && (
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                          <h2 className="text-xl font-ovo text-white uppercase tracking-wider">Timeline Kisah Cinta</h2>
+
+                          {/* Add Button (limited to 5) */}
+                          {(!settings.timelineCount || settings.timelineCount < 5) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newCount = Math.min((settings.timelineCount || 3) + 1, 5);
+                                handleUpdateField("timelineCount", newCount);
+                              }}
+                              className="flex items-center gap-x-1.5 bg-white text-black hover:bg-neutral-200 transition font-bold px-3 py-1.5 rounded-lg text-xs shadow-md"
+                            >
+                              <FaPlus />
+                              <span>Tambah Kisah</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="space-y-6">
+                          {Array.from({ length: settings.timelineCount || 3 }).map((_, idx) => {
+                            const num = idx + 1;
+                            const timelineKey = `timeline_${num}`;
+                            const contentKey = `timeline_${num}_content`;
+                            return (
+                              <div
+                                key={num}
+                                className="p-4 bg-neutral-950/40 border border-neutral-800/40 rounded-xl space-y-3 relative group"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">
+                                    Kisah #{num}
+                                  </span>
+
+                                  {/* Delete Button (can delete if count > 1) */}
+                                  {(settings.timelineCount || 3) > 1 && num === (settings.timelineCount || 3) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newCount = Math.max((settings.timelineCount || 3) - 1, 1);
+                                        // Clear fields of the deleted section
+                                        handleUpdateField(timelineKey, "");
+                                        handleUpdateField(contentKey, "");
+                                        handleUpdateField("timelineCount", newCount);
+                                      }}
+                                      className="text-red-400 hover:text-red-300 text-xs flex items-center gap-x-1 transition font-medium"
+                                      title="Hapus section cerita ini"
+                                    >
+                                      <span>Hapus</span>
+                                    </button>
+                                  )}
+                               </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div className="md:col-span-1">
+                                    <label className="block text-[10px] text-neutral-400 mb-1">Tahun / Waktu (Contoh: JANUARI 2021)</label>
+                                    <input
+                                      type="text"
+                                      value={(settings as any)[timelineKey] || ""}
+                                      onChange={(e) => handleUpdateField(timelineKey, e.target.value)}
+                                      placeholder={`Tahun ${num}`}
+                                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                    />
+                                  </div>
+                                  <div className="md:col-span-2">
+                                    <label className="block text-[10px] text-neutral-400 mb-1">Isi Cerita</label>
+                                    <textarea
+                                      rows={2}
+                                      value={(settings as any)[contentKey] || ""}
+                                      onChange={(e) => handleUpdateField(contentKey, e.target.value)}
+                                      placeholder={`Cerita kisah ke-${num}...`}
+                                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-1.5 text-xs text-white"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION: GROOM & BRIDE */}
+                    {settingsSection === "groomBride" && (
+                      <div className="space-y-8">
+                        <h2 className="text-xl font-ovo border-b border-neutral-800 pb-3 text-white uppercase tracking-wider">Profil Mempelai</h2>
+
+                        {/* GROOM */}
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-semibold uppercase text-[#a3a3a3] flex items-center gap-x-2">
+                            <span className="w-2 h-2 rounded-full bg-blue-500"></span> Mempelai Laki-Laki (Groom)
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Nama Lengkap</label>
+                              <input
+                                type="text"
+                                value={settings.groom}
+                                onChange={(e) => handleUpdateField("groom", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Nama Panggilan</label>
+                              <input
+                                type="text"
+                                value={settings.groomNickName}
+                                onChange={(e) => handleUpdateField("groomNickName", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Instagram Username</label>
+                              <input
+                                type="text"
+                                value={settings.groomInstagram}
+                                onChange={(e) => handleUpdateField("groomInstagram", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Gelar Depan (Gelar Sebelum Nama)</label>
+                              <input
+                                type="text"
+                                value={settings.groomTitleFront || ""}
+                                onChange={(e) => handleUpdateField("groomTitleFront", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                placeholder="Contoh: Dr., Ir."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Gelar Belakang (Gelar Setelah Nama)</label>
+                              <input
+                                type="text"
+                                value={settings.groomTitleBack || ""}
+                                onChange={(e) => handleUpdateField("groomTitleBack", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                placeholder="Contoh: S.T., M.Kom."
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs text-neutral-400 mb-1">Biografi Ringkas</label>
+                            <textarea
+                              rows={3}
+                              value={settings.groomBio}
+                              onChange={(e) => handleUpdateField("groomBio", e.target.value)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+
+                        {/* BRIDE */}
+                        <div className="border-t border-neutral-800/60 pt-6 space-y-4">
+                          <h3 className="text-sm font-semibold uppercase text-[#a3a3a3] flex items-center gap-x-2">
+                            <span className="w-2 h-2 rounded-full bg-pink-500"></span> Mempelai Perempuan (Bride)
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Nama Lengkap</label>
+                              <input
+                                type="text"
+                                value={settings.bride}
+                                onChange={(e) => handleUpdateField("bride", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Nama Panggilan</label>
+                              <input
+                                type="text"
+                                value={settings.brideNickName}
+                                onChange={(e) => handleUpdateField("brideNickName", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Instagram Username</label>
+                              <input
+                                type="text"
+                                value={settings.brideInstagram}
+                                onChange={(e) => handleUpdateField("brideInstagram", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Gelar Depan (Gelar Sebelum Nama)</label>
+                              <input
+                                type="text"
+                                value={settings.brideTitleFront || ""}
+                                onChange={(e) => handleUpdateField("brideTitleFront", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                placeholder="Contoh: dr., Ir."
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Gelar Belakang (Gelar Setelah Nama)</label>
+                              <input
+                                type="text"
+                                value={settings.brideTitleBack || ""}
+                                onChange={(e) => handleUpdateField("brideTitleBack", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                placeholder="Contoh: S.Ked, M.Si"
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs text-neutral-400 mb-1">Biografi Ringkas</label>
+                            <textarea
+                              rows={3}
+                              value={settings.brideBio}
+                              onChange={(e) => handleUpdateField("brideBio", e.target.value)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION: PENUTUP & UCAPAN TERIMA KASIH */}
+                    {settingsSection === "penutup" && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-ovo border-b border-neutral-800 pb-3 text-white uppercase tracking-wider">Penutup &amp; Ucapan Terima Kasih</h2>
+                        <div className="bg-neutral-950/40 rounded-xl border border-neutral-800/40 p-5 space-y-5">
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Judul Penutup</label>
+                            <input
+                              type="text"
+                              value={settings.thankyou}
+                              onChange={(e) => handleUpdateField("thankyou", e.target.value)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-white transition-all text-sm"
+                              placeholder="Contoh: Thank You For Your Attendance"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Deskripsi / Pesan Penutup</label>
+                            <textarea
+                              rows={3}
+                              value={settings.thankyouDetail}
+                              onChange={(e) => handleUpdateField("thankyouDetail", e.target.value)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-white transition-all text-sm"
+                              placeholder="Contoh: Tetap doakan kami ya Saudara/i..."
+                            />
+                          </div>
+
+                          {/* POSISI KOTAK */}
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Posisi Kotak Teks</label>
+                            <div className="grid grid-cols-2 gap-3">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateField("closingBoxPosition", "top")}
+                                className={`flex flex-col items-center gap-y-2 px-4 py-3 rounded-xl border text-xs font-semibold transition-all ${
+                                  (settings.closingBoxPosition ?? "bottom") === "top"
+                                    ? "bg-white text-black border-white shadow-md"
+                                    : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                                }`}
+                              >
+                                <span className="text-lg">⬆</span>
+                                <span>Atas</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateField("closingBoxPosition", "bottom")}
+                                className={`flex flex-col items-center gap-y-2 px-4 py-3 rounded-xl border text-xs font-semibold transition-all ${
+                                  (settings.closingBoxPosition ?? "bottom") === "bottom"
+                                    ? "bg-white text-black border-white shadow-md"
+                                    : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:border-neutral-600 hover:text-white"
+                                }`}
+                              >
+                                <span className="text-lg">⬇</span>
+                                <span>Bawah</span>
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-neutral-500 mt-2">Atur posisi kotak teks agar foto tidak tertutup.</p>
+                          </div>
+
+                          {/* FOOTER / WATERMARK (CRAFTED WITH LOVE) */}
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Teks Footer / Watermark (Slide Terakhir)</label>
+                            <textarea
+                              rows={3}
+                              value={settings.craftedWithLove ?? "Crafted with Love"}
+                              onChange={(e) => handleUpdateField("craftedWithLove", e.target.value)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-white transition-all text-sm"
+                              placeholder="Contoh: Crafted with Love&#10;by Edward & Dian"
+                            />
+                            <p className="text-[10px] text-neutral-500 mt-1">Bisa multi-baris (tekan Enter untuk baris baru), teks akan otomatis rata tengah (center).</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION: EVENTS & MAPS */}
+                    {settingsSection === "events" && (
+                      <div className="space-y-8">
+                        <h2 className="text-xl font-ovo border-b border-neutral-800 pb-3 text-white uppercase tracking-wider">Jadwal Acara &amp; Maps</h2>
+
+                        {/* TANGGAL PERNIKAHAN */}
+                        <div className="p-4 bg-neutral-950/40 border border-neutral-800/40 rounded-xl space-y-3">
+                          <h3 className="text-sm font-semibold uppercase text-neutral-300 flex items-center gap-x-2">
+                            <FaCalendarAlt className="w-3.5 h-3.5 text-neutral-400" /> Tanggal Pernikahan
+                          </h3>
+                          <div className="relative">
+                            <input
+                              type="date"
+                              value={settings.eventDate ? settings.eventDate.substring(0, 10) : ""}
+                              onChange={(e) => handleUpdateField("eventDate", e.target.value + "T00:00:00")}
+                              onClick={(e) => {
+                                try {
+                                  (e.target as any).showPicker();
+                                } catch (err) { }
+                              }}
+                              style={{ colorScheme: "dark" }}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg pl-10 pr-4 py-2 text-white focus:outline-none focus:border-white transition-all text-sm cursor-pointer"
+                            />
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none">
+                              <FaCalendarAlt className="w-4 h-4" />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-neutral-500">⏱ Countdown otomatis mengikuti tanggal ini + jam start Holy Matrimony.</p>
+                        </div>
+
+                        {/* HOLY MATRIMONY */}
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold uppercase text-neutral-300">Pemberkatan / Holy Matrimony</h3>
+                            <label className="flex items-center gap-x-2 cursor-pointer text-xs">
+                              <input
+                                type="checkbox"
+                                checked={settings.holyMatrimony.enabled}
+                                onChange={(e) => handleUpdateField("holyMatrimony.enabled", e.target.checked)}
+                                className="rounded bg-neutral-950 border-neutral-800 text-white focus:ring-0 focus:ring-offset-0"
+                              />
+                              <span>Aktifkan Section</span>
+                            </label>
+                          </div>
+
+                          {settings.holyMatrimony.enabled && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-neutral-950/40 rounded-xl border border-neutral-800/40">
+                              <div className="md:col-span-2">
+                                <label className="block text-xs text-neutral-400 mb-2 uppercase tracking-wide font-semibold">Waktu Acara</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="block text-[10px] text-neutral-400 font-mono uppercase tracking-widest mb-1">Mulai</label>
+                                    <input
+                                      type="time"
+                                      value={(() => {
+                                        const t = settings.holyMatrimony.time;
+                                        const part = t?.split("-")[0]?.trim();
+                                        const m = part?.match(/(\d{1,2})[\.:]?(\d{2})/);
+                                        if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
+                                        return "12:00";
+                                      })()}
+                                      onChange={(e) => {
+                                        const [h, m] = e.target.value.split(":");
+                                        const startStr = `${h}.${m}`;
+                                        const current = settings.holyMatrimony.time;
+                                        const endPart = current?.includes("-") ? current.split("-")[1]?.trim() : "13.00";
+                                        handleUpdateField("holyMatrimony.time", `${startStr} - ${endPart}`);
+                                      }}
+                                      style={{ colorScheme: "dark" }}
+                                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/20 transition-all text-sm cursor-pointer"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-neutral-400 font-mono uppercase tracking-widest mb-1">Selesai</label>
+                                    <input
+                                      type="time"
+                                      value={(() => {
+                                        const t = settings.holyMatrimony.time;
+                                        const part = t?.includes("-") ? t.split("-")[1]?.trim() : "13:00";
+                                        const m = part?.match(/(\d{1,2})[\.:]?(\d{2})/);
+                                        if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
+                                        return "13:00";
+                                      })()}
+                                      onChange={(e) => {
+                                        const [h, m] = e.target.value.split(":");
+                                        const endStr = `${h}.${m}`;
+                                        const current = settings.holyMatrimony.time;
+                                        const startPart = current?.includes("-") ? current.split("-")[0]?.trim() : "12.00";
+                                        handleUpdateField("holyMatrimony.time", `${startPart} - ${endStr}`);
+                                      }}
+                                      style={{ colorScheme: "dark" }}
+                                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/20 transition-all text-sm cursor-pointer"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-xs text-neutral-400 mb-1">Nama Tempat</label>
+                                <input
+                                  type="text"
+                                  value={settings.holyMatrimony.place}
+                                  onChange={(e) => handleUpdateField("holyMatrimony.place", e.target.value)}
+                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="block text-xs text-neutral-400 mb-1">Alamat Lengkap</label>
+                                <input
+                                  type="text"
+                                  value={settings.holyMatrimony.place_details}
+                                  onChange={(e) => handleUpdateField("holyMatrimony.place_details", e.target.value)}
+                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="block text-xs text-neutral-400 mb-1">Google Maps Link</label>
+                                <input
+                                  type="text"
+                                  value={settings.holyMatrimony.googleMapsLink}
+                                  onChange={(e) => handleUpdateField("googleMapsLink" in settings.holyMatrimony ? "holyMatrimony.googleMapsLink" : "holyMatrimony.googleMapsLink", e.target.value)}
+                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* WEDDING RECEPTION */}
+                        <div className="border-t border-neutral-800/60 pt-6 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-semibold uppercase text-neutral-300">Resepsi Pernikahan (Wedding Reception)</h3>
+                            <label className="flex items-center gap-x-2 cursor-pointer text-xs">
+                              <input
+                                type="checkbox"
+                                checked={settings.weddingReception.enabled}
+                                onChange={(e) => handleUpdateField("weddingReception.enabled", e.target.checked)}
+                                className="rounded bg-neutral-950 border-neutral-800 text-white focus:ring-0 focus:ring-offset-0"
+                              />
+                              <span>Aktifkan Section</span>
+                            </label>
+                          </div>
+
+                          {settings.weddingReception.enabled && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-neutral-950/40 rounded-xl border border-neutral-800/40">
+                              <div className="md:col-span-2">
+                                <label className="block text-xs text-neutral-400 mb-2 uppercase tracking-wide font-semibold">Waktu Acara</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <label className="block text-[10px] text-neutral-400 font-mono uppercase tracking-widest mb-1">Mulai</label>
+                                    <input
+                                      type="time"
+                                      value={(() => {
+                                        const t = settings.weddingReception.time;
+                                        const part = t?.split("-")[0]?.trim();
+                                        const m = part?.match(/(\d{1,2})[\.:]?(\d{2})/);
+                                        if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
+                                        return "13:00";
+                                      })()}
+                                      onChange={(e) => {
+                                        const [h, m] = e.target.value.split(":");
+                                        const startStr = `${h}.${m}`;
+                                        const current = settings.weddingReception.time;
+                                        const endPart = current?.includes("-") ? current.split("-")[1]?.trim() : "17.00";
+                                        handleUpdateField("weddingReception.time", `${startStr} - ${endPart}`);
+                                      }}
+                                      style={{ colorScheme: "dark" }}
+                                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/20 transition-all text-sm cursor-pointer"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[10px] text-neutral-400 font-mono uppercase tracking-widest mb-1">Selesai</label>
+                                    <input
+                                      type="time"
+                                      value={(() => {
+                                        const t = settings.weddingReception.time;
+                                        const part = t?.includes("-") ? t.split("-")[1]?.trim() : "17:00";
+                                        const m = part?.match(/(\d{1,2})[\.:]?(\d{2})/);
+                                        if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
+                                        return "17:00";
+                                      })()}
+                                      onChange={(e) => {
+                                        const [h, m] = e.target.value.split(":");
+                                        const endStr = `${h}.${m}`;
+                                        const current = settings.weddingReception.time;
+                                        const startPart = current?.includes("-") ? current.split("-")[0]?.trim() : "13.00";
+                                        handleUpdateField("weddingReception.time", `${startPart} - ${endStr}`);
+                                      }}
+                                      style={{ colorScheme: "dark" }}
+                                      className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/20 transition-all text-sm cursor-pointer"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-xs text-neutral-400 mb-1">Nama Tempat</label>
+                                <input
+                                  type="text"
+                                  value={settings.weddingReception.place}
+                                  onChange={(e) => handleUpdateField("weddingReception.place", e.target.value)}
+                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="block text-xs text-neutral-400 mb-1">Alamat Lengkap</label>
+                                <input
+                                  type="text"
+                                  value={settings.weddingReception.place_details}
+                                  onChange={(e) => handleUpdateField("weddingReception.place_details", e.target.value)}
+                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                />
+                              </div>
+                              <div className="md:col-span-2">
+                                <label className="block text-xs text-neutral-400 mb-1">Google Maps Link</label>
+                                <input
+                                  type="text"
+                              value={settings.weddingReception.googleMapsLink}
+                                  onChange={(e) => handleUpdateField("weddingReception.googleMapsLink", e.target.value)}
+                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION: LIVE STREAMING */}
+                    {settingsSection === "livestreaming" && (
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                          <h2 className="text-xl font-ovo text-white uppercase tracking-wider">Live Streaming</h2>
+                          <label className="flex items-center gap-x-2 cursor-pointer text-xs">
+                            <input
+                              type="checkbox"
+                              checked={settings.livestreaming.enabled}
+                              onChange={(e) => handleUpdateField("livestreaming.enabled", e.target.checked)}
+                              className="rounded bg-neutral-950 border-neutral-800 text-white focus:ring-0 focus:ring-offset-0"
+                            />
+                            <span>Aktifkan Section</span>
+                          </label>
+                        </div>
+
+                        <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-4 text-xs text-blue-300 space-y-1">
+                          <p className="font-semibold flex items-center gap-x-2 text-blue-200">
+                            <FaInfoCircle className="text-blue-400" /> INFO SECTION LIVE STREAMING
+                          </p>
+                          <p>Tampilkan jadwal dan link streaming langsung di undangan digital. Tamu bisa langsung klik untuk bergabung.</p>
+                        </div>
+
+                        {settings.livestreaming.enabled && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-neutral-950/40 rounded-xl border border-neutral-800/40 animate-fadeIn">
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-2 uppercase tracking-wide font-semibold">Jam Streaming</label>
+                              <div className="relative">
+                                <input
+                                  type="time"
+                                  value={(() => {
+                                    const t = settings.livestreaming.time;
+                                    const m = t?.match(/(\d{1,2})[\.:]?(\d{2})/);
+                                    if (m) return `${m[1].padStart(2, '0')}:${m[2]}`;
+                                    return "12:00";
+                                  })()}
+                                  onChange={(e) => {
+                                    const [h, m] = e.target.value.split(":");
+                                    handleUpdateField("livestreaming.time", `${h}.${m}`);
+                                  }}
+                                  style={{ colorScheme: "dark" }}
+                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/20 transition-all text-sm cursor-pointer appearance-none"
+                                />
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs font-mono">
+                                  {(() => {
+                                    const t = settings.livestreaming.time;
+                                    const m = t?.match(/(\d{1,2})[\.:]?(\d{2})/);
+                                    if (m) {
+                                      const h = parseInt(m[1]);
+                                      return h >= 12 ? "PM" : "AM";
+                                    }
+                                    return "";
+                                  })()}
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Link Live Streaming (YouTube / Zoom)</label>
+                              <input
+                                type="text"
+                                value={settings.livestreaming.link}
+                                onChange={(e) => handleUpdateField("livestreaming.link", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                placeholder="https://www.youtube.com/watch?v=... atau Zoom link"
+                              />
+                              <p className="text-[10px] text-neutral-500 mt-1">Tempel link video YouTube atau link Zoom/Meet langsung</p>
+                            </div>
+                            <div className="md:col-span-2">
+                              <label className="block text-xs text-neutral-400 mb-1">Deskripsi Live Streaming</label>
+                              <input
+                                type="text"
+                                value={settings.livestreaming.detail}
+                                onChange={(e) => handleUpdateField("livestreaming.detail", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                placeholder="Keterangan tambahan..."
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* SECTION: VIDEO PREWEDDING */}
+                    {settingsSection === "prewedding" && (
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                          <h2 className="text-xl font-ovo text-white uppercase tracking-wider">Video Prewedding (Embed)</h2>
+                          <label className="flex items-center gap-x-2 cursor-pointer text-xs">
+                            <input
+                              type="checkbox"
+                              checked={settings.prewedding.enabled}
+                              onChange={(e) => handleUpdateField("prewedding.enabled", e.target.checked)}
+                              className="rounded bg-neutral-950 border-neutral-800 text-white focus:ring-0 focus:ring-offset-0"
+                            />
+                            <span>Aktifkan Section</span>
+                          </label>
+                        </div>
+
+                        <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-4 text-xs text-blue-300 space-y-1">
+                          <p className="font-semibold flex items-center gap-x-2 text-blue-200">
+                            <FaInfoCircle className="text-blue-400" /> INFO SECTION PREWEDDING VIDEO
+                          </p>
+                          <p>Tampilkan pemutar video prewedding dari YouTube secara langsung di slide undangan digital Anda.</p>
+                        </div>
+
+                        {settings.prewedding.enabled && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-neutral-950/40 rounded-xl border border-neutral-800/40 animate-fadeIn">
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Link Video YouTube</label>
+                              <input
+                                type="text"
+                                value={settings.prewedding.link}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const extracted = extractYoutubeId(val);
+                                  handleUpdateField("prewedding.link", extracted || val);
+                                }}
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                              />
+                              <p className="text-[10px] text-neutral-500 mt-1">Tempel link video YouTube langsung (ID video akan otomatis terdeteksi)</p>
+                            </div>
+                            <div>
+                              <label className="block text-xs text-neutral-400 mb-1">Keterangan / Caption Video</label>
+                              <input
+                                type="text"
+                                value={settings.prewedding.detail}
+                                onChange={(e) => handleUpdateField("prewedding.detail", e.target.value)}
+                                className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                placeholder="Contoh: Unveiling Our Prewedding Story"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* SECTION: MEDIA (MUSIC & IMAGES) */}
+                    {settingsSection === "media" && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-ovo border-b border-neutral-800 pb-3 text-white uppercase tracking-wider">Unggah Lagu & Foto</h2>
+
+                        {/* BACKGROUND MUSIC */}
+                        <div className="p-4 bg-neutral-950/40 rounded-xl border border-neutral-800/40 space-y-4">
+                          <div className="flex items-center gap-x-2 text-neutral-300 font-semibold text-sm">
+                            <FaMusic /> <span>Musik Latar (Background Music)</span>
+                          </div>
+                          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <div className="text-xs text-neutral-400">
+                              <p>File audio yang diputar otomatis ketika undangan dibuka.</p>
+                              <p className="mt-1 font-mono text-neutral-300">File Aktif: {settings.musicPath}</p>
+                            </div>
+                            <div className="relative">
+                              <input
+                                type="file"
+                                accept="audio/mp3"
+                                id="music-uploader"
+                                onChange={(e) => handleFileUpload(e, "musicPath")}
+                                className="hidden"
+                              />
+                              <label
+                                htmlFor="music-uploader"
+                                className="bg-neutral-800 hover:bg-neutral-700 text-xs px-4 py-2 rounded-lg cursor-pointer inline-block transition font-semibold"
+                              >
+                                Pilih File MP3
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* SLIDES IMAGES */}
+                        <div className="border-t border-neutral-800/60 pt-6 space-y-4">
+                          <h3 className="text-sm font-semibold uppercase text-neutral-300 flex items-center gap-x-2">
+                            <FaImage /> <span>Gambar & Foto Galeri Slide</span>
+                          </h3>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                            {/* SIDE IMAGE */}
+                            <div className="bg-neutral-950/40 border border-neutral-800/40 p-4 rounded-xl flex flex-col justify-between">
+                              <div>
+                                <span className="text-xs font-semibold text-neutral-400 block mb-2 uppercase">Desktop Side Banner</span>
+                                <div className="w-full h-32 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden mb-3">
+                                  {settings.slideImages.sideImage ? (
+                                    <img src={settings.slideImages.sideImage} alt="side" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-neutral-600 text-xs">No Image Loaded</span>
+                                  )}
+                                </div>
+                              </div>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                id="side-image-uploader"
+                                onChange={(e) => handleFileUpload(e, "slideImages.sideImage")}
+                                className="hidden"
+                              />
+                              <label
+                                htmlFor="side-image-uploader"
+                                className="w-full text-center bg-neutral-800 hover:bg-neutral-700 text-xs py-1.5 rounded-lg cursor-pointer transition font-medium"
+                              >
+                                Ubah Foto Samping
+                              </label>
+                            </div>
+
+                            {/* SLIDES GENERATOR LOOP */}
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                              const slideKey = `slide${num}`;
+                              const slideVal = (settings.slideImages as any)[slideKey];
+                              return (
+                                <div key={num} className="bg-neutral-950/40 border border-neutral-800/40 p-4 rounded-xl flex flex-col justify-between">
+                                  <div>
+                                    <span className="text-xs font-semibold text-neutral-400 block mb-2 uppercase">Slide Background {num}</span>
+                                    <div className="w-full h-32 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden mb-3">
+                                      {slideVal ? (
+                                        <img src={slideVal} alt={`Slide ${num}`} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <span className="text-neutral-600 text-xs">No Image Loaded</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    id={`slide-${num}-uploader`}
+                                    onChange={(e) => handleFileUpload(e, `slideImages.${slideKey}`)}
+                                    className="hidden"
+                                  />
+                                  <label
+                                    htmlFor={`slide-${num}-uploader`}
+                                    className="w-full text-center bg-neutral-800 hover:bg-neutral-700 text-xs py-1.5 rounded-lg cursor-pointer transition font-medium"
+                                  >
+                                    Ubah Background
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* GALERI FOTO */}
+                        <div className="border-t border-neutral-800/60 pt-6 space-y-4">
+                          <h3 className="text-sm font-semibold uppercase text-neutral-300 flex items-center gap-x-2">
+                            <FaImage /> <span>Foto Galeri (Foto 1 - 9)</span>
+                          </h3>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((idx) => {
+                              const galleryImages = settings.galleryImages || [];
+                              const imgVal = galleryImages[idx] || "";
+                              return (
+                                <div key={idx} className="bg-neutral-950/40 border border-neutral-800/40 p-4 rounded-xl flex flex-col justify-between animate-fadeIn">
+                                  <div>
+                                    <span className="text-xs font-semibold text-neutral-400 block mb-2 uppercase">Foto Galeri {idx + 1}</span>
+                                    <div className="w-full h-32 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden mb-3">
+                                      {imgVal ? (
+                                        <img src={imgVal} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <span className="text-neutral-600 text-xs">No Image Loaded</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2">
+                                    <input
+                                      type="text"
+                                      value={imgVal}
+                                      onChange={(e) => handleUpdateGalleryImage(idx, e.target.value)}
+                                      className="w-full bg-neutral-900 border border-neutral-800 rounded px-2.5 py-1 text-white focus:outline-none focus:border-white transition-all text-xs font-mono"
+                                      placeholder="URL Gambar..."
+                                    />
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      id={`gallery-${idx}-uploader`}
+                                      onChange={(e) => handleGalleryUpload(e, idx)}
+                                      className="hidden"
+                                    />
+                                    <label
+                                      htmlFor={`gallery-${idx}-uploader`}
+                                      className="w-full text-center bg-neutral-800 hover:bg-neutral-700 text-xs py-1.5 rounded-lg cursor-pointer transition font-medium block"
+                                    >
+                                      Ubah Foto
+                                    </label>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION: INVITATION MESSAGE TEMPLATE */}
+                    {settingsSection === "template" && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-ovo border-b border-neutral-800 pb-3 text-white uppercase tracking-wider">Template Pesan WhatsApp</h2>
+
+                        <div className="bg-neutral-950/50 border border-neutral-800/80 p-4 rounded-xl text-xs space-y-2 leading-relaxed text-neutral-300">
+                          <p className="font-semibold flex items-center gap-x-2 text-white">
+                            <FaInfoCircle className="text-blue-400 text-sm" /> PETUNJUK PENGGUNAAN TAG TEMPLATE:
+                          </p>
+                          <p>Gunakan tag dinamis berikut di dalam template pesan Anda. Tag akan otomatis diganti ketika pesan dikirimkan:</p>
+                          <ul className="list-disc pl-4 space-y-1 font-mono text-neutral-400">
+                            <li><strong className="text-white">{"{nama}"}</strong> : Nama dari tamu (misal: Budi Santoso)</li>
+                            <li><strong className="text-white">{"{link}"}</strong> : Link undangan tamu tersebut (misal: http://domain.com/?to=Budi%20Santoso)</li>
+                            <li><strong className="text-white">{"{tanggal}"}</strong> : Hari &amp; Tanggal Acara (diambil otomatis dari jadwal pernikahan, misal: Minggu, 11 Oktober 2026)</li>
+                          </ul>
+                          <p className="mt-2 text-neutral-500">Anda dapat memformat pesan menggunakan cetak tebal (*teks*), miring (_teks_), atau coret (~teks~) yang didukung oleh WhatsApp.</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wide">Template Pesan Undang</label>
+                          <textarea
+                            rows={12}
+                            value={settings.invitationTemplate}
+                            onChange={(e) => handleUpdateField("invitationTemplate", e.target.value)}
+                            className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-white font-mono leading-relaxed"
+                            placeholder="Tulis template pesan di sini..."
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION: POPUP MESSAGE TEMPLATE */}
+                    {settingsSection === "popupTemplate" && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-ovo border-b border-neutral-800 pb-3 text-white uppercase tracking-wider">Template Tulisan Popup</h2>
+
+                        <div className="bg-neutral-950/50 border border-neutral-800/80 p-4 rounded-xl text-xs space-y-2 leading-relaxed text-neutral-300">
+                          <p className="font-semibold flex items-center gap-x-2 text-white">
+                            <FaInfoCircle className="text-blue-400 text-sm" /> PETUNJUK TEMPLATE POPUP:
+                          </p>
+                          <p>Teks ini akan muncul pada dialog popup pengingat ketika tamu membuka undangan dan belum mengisi RSVP / ucapan.</p>
+                          <ul className="list-disc pl-4 space-y-1 font-mono text-neutral-400">
+                            <li><strong className="text-white">{"{nama}"}</strong> : Nama dari tamu (misal: Budi Santoso)</li>
+                          </ul>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="block text-xs font-semibold text-neutral-400 uppercase tracking-wide">Pesan Tulisan Popup</label>
+                          <textarea
+                            rows={6}
+                            value={settings.popupTemplate ?? "Kamu sudah ucapin ucapan & doa restu serta memastikan kehadirannya belum? Kalau belum, langsung saja!"}
+                            onChange={(e) => handleUpdateField("popupTemplate", e.target.value)}
+                            className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-white text-sm focus:outline-none focus:border-white font-mono leading-relaxed"
+                            placeholder="Tulis template popup di sini..."
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* SECTION: WEDDING GIFT / AMPLOP DIGITAL */}
+                    {settingsSection === "weddingGift" && (
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                          <h2 className="text-xl font-ovo text-white uppercase tracking-wider">Hadiah & Amplop Digital</h2>
+                          <label className="flex items-center gap-x-2 cursor-pointer text-xs">
+                            <input
+                              type="checkbox"
+                              checked={settings.weddingGift?.enabled ?? true}
+                              onChange={(e) => handleUpdateField("weddingGift.enabled", e.target.checked)}
+                              className="rounded bg-neutral-950 border-neutral-800 text-white focus:ring-0 focus:ring-offset-0"
+                            />
+                            <span>Aktifkan Section</span>
+                          </label>
+                        </div>
+
+                        {(settings.weddingGift?.enabled ?? true) && (
+                          <div className="space-y-8 animate-fadeIn">
+                            {/* QRIS UPLOAD SECTION */}
+                            <div className="p-4 bg-neutral-950/40 border border-neutral-800/40 rounded-xl space-y-4">
+                              <h3 className="text-sm font-semibold uppercase text-neutral-300 flex items-center gap-x-2">
+                                <span>1. Pengaturan QRIS</span>
+                              </h3>
+
+                              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                                <div className="md:col-span-4 flex flex-col items-center justify-center">
+                                  {/* Strict 1:1 image frame constraint */}
+                                  <div className="w-40 h-40 rounded-xl bg-neutral-900 border-2 border-dashed border-neutral-800 flex items-center justify-center overflow-hidden relative group p-2">
+                                    {settings.weddingGift?.qrisImage ? (
+                                      <img
+                                        src={settings.weddingGift.qrisImage}
+                                        alt="QRIS Preview"
+                                        className="w-full h-full object-contain aspect-square rounded-lg"
+                                      />
+                                    ) : (
+                                      <span className="text-neutral-600 text-xs text-center px-4">QRIS Belum Diunggah</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="md:col-span-8 space-y-4">
+                                  <div>
+                                    <label className="block text-xs font-semibold text-neutral-400 mb-1.5 uppercase tracking-wide">Nama Pemilik Akun QRIS</label>
+                                    <input
+                                      type="text"
+                                      value={settings.weddingGift?.qrisOwnerName || ""}
+                                      onChange={(e) => handleUpdateField("weddingGift.qrisOwnerName", e.target.value)}
+                                      placeholder="Contoh: Edward & Dian"
+                                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-white transition-all"
+                                    />
+                                  </div>
+
+                                  <div className="flex flex-wrap gap-2">
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      id="qris-uploader"
+                                      onChange={handleQRISUpload}
+                                      className="hidden"
+                                    />
+                                    <label
+                                      htmlFor="qris-uploader"
+                                      className="bg-white text-black hover:bg-neutral-200 transition font-bold px-4 py-2 rounded-lg text-xs cursor-pointer inline-flex items-center gap-1.5 shadow-md"
+                                    >
+                                      Upload / Ganti Gambar QRIS
+                                    </label>
+                                    {settings.weddingGift?.qrisImage && (
+                                      <button
+                                        type="button"
+                                        onClick={handleDeleteQRIS}
+                                        className="bg-red-950/40 text-red-400 border border-red-900/50 hover:bg-red-900/20 transition font-medium px-4 py-2 rounded-lg text-xs flex items-center gap-1.5"
+                                      >
+                                        Hapus QRIS
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* BANK ACCOUNTS SECTION */}
+                            <div className="p-4 bg-neutral-950/40 border border-neutral-800/40 rounded-xl space-y-4">
+                              <div className="flex justify-between items-center">
+                                <h3 className="text-sm font-semibold uppercase text-neutral-300 flex items-center gap-x-2">
+                                  <span>2. Rekening Bank Transfer</span>
+                                </h3>
+                                <button
+                                  type="button"
+                                  onClick={handleAddBankAccount}
+                                  className="flex items-center gap-x-1 bg-neutral-800 hover:bg-neutral-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shadow-md transition"
+                                >
+                                  <FaPlus className="w-3.5 h-3.5" />
+                                  <span>Tambah Bank</span>
+                                </button>
+                              </div>
+
+                              <div className="space-y-4">
+                                {(settings.weddingGift?.bankAccounts || []).length === 0 ? (
+                                  <p className="text-xs text-neutral-500 text-center py-4">Belum ada rekening bank yang ditambahkan.</p>
+                                ) : (
+                                  (settings.weddingGift?.bankAccounts || []).map((acc: any, idx: number) => (
+                                    <div key={idx} className="p-4 bg-neutral-950 border border-neutral-800 rounded-xl space-y-4 relative group animate-fadeIn">
+                                      <div className="flex justify-between items-center">
+                                        <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wide">Rekening #{idx + 1}</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteBankAccount(idx)}
+                                          className="text-red-400 hover:text-red-300 text-xs flex items-center gap-x-1 transition font-medium"
+                                        >
+                                          <FaTrash className="w-3 h-3" />
+                                          <span>Hapus</span>
+                                        </button>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div>
+                                          <label className="block text-[10px] text-neutral-400 mb-1 uppercase">Nama Bank</label>
+                                          <select
+                                            value={acc.bankName || ""}
+                                            onChange={(e) => handleUpdateBankAccount(idx, "bankName", e.target.value)}
+                                            className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-white"
+                                          >
+                                            <option value="BCA">BCA</option>
+                                            <option value="BRI">BRI</option>
+                                            <option value="Mandiri">Mandiri</option>
+                                            <option value="BNI">BNI</option>
+                                            <option value="BSI">BSI (Bank Syariah Indonesia)</option>
+                                            {acc.bankName && acc.bankName !== "BCA" && acc.bankName !== "BRI" && acc.bankName !== "Mandiri" && acc.bankName !== "BNI" && acc.bankName !== "BSI" && acc.bankName !== "Lainnya" && (
+                                              <option value={acc.bankName}>{acc.bankName}</option>
+                                            )}
+                                            <option value="Lainnya">Lainnya (Tulis Manual)</option>
+                                          </select>
+                                          {acc.bankName !== "BCA" && acc.bankName !== "BRI" && acc.bankName !== "Mandiri" && acc.bankName !== "BNI" && acc.bankName !== "BSI" && (
+                                            <input
+                                              type="text"
+                                              value={acc.bankName === "Lainnya" ? "" : (acc.bankName || "")}
+                                              onChange={(e) => handleUpdateBankAccount(idx, "bankName", e.target.value)}
+                                              placeholder="Tulis Nama Bank..."
+                                              className="w-full bg-[#121212] border border-neutral-800 rounded-lg px-3 py-1.5 mt-2 text-xs text-white animate-fadeIn"
+                                            />
+                                          )}
+                                        </div>
+
+                                        <div>
+                                          <label className="block text-[10px] text-neutral-400 mb-1 uppercase">Nomor Rekening</label>
+                                          <input
+                                            type="text"
+                                            value={acc.accountNumber || ""}
+                                            onChange={(e) => handleUpdateBankAccount(idx, "accountNumber", e.target.value)}
+                                            placeholder="Nomor rekening bank..."
+                                            className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white font-mono"
+                                          />
+                                        </div>
+
+                                        <div>
+                                          <label className="block text-[10px] text-neutral-400 mb-1 uppercase">Nama Pemilik Rekening</label>
+                                          <input
+                                            type="text"
+                                            value={acc.accountHolderName || ""}
+                                            onChange={(e) => handleUpdateBankAccount(idx, "accountHolderName", e.target.value)}
+                                            placeholder="Nama A/n..."
+                                            className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white"
+                                          />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* SECTION: DRESSCODE */}
+                    {settingsSection === "dresscode" && (
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                          <h2 className="text-xl font-ovo text-white uppercase tracking-wider">Dresscode</h2>
+                          <label className="flex items-center gap-x-2 cursor-pointer text-xs">
+                            <input
+                              type="checkbox"
+                              checked={settings.dresscode?.enabled ?? false}
+                              onChange={(e) => handleUpdateField("dresscode.enabled", e.target.checked)}
+                              className="rounded bg-neutral-950 border-neutral-800 text-white focus:ring-0 focus:ring-offset-0"
+                            />
+                            <span>Aktifkan Section</span>
+                          </label>
+                        </div>
+
+                        {/* Info panel */}
+                        <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-4 text-xs text-blue-300 space-y-2">
+                          <p className="font-semibold flex items-center gap-x-2 text-blue-200">
+                            <FaInfoCircle className="text-blue-400" /> INFO SECTION DRESSCODE
+                          </p>
+                          <p>Section ini menampilkan slide full-screen dengan background gambar dan teks dresscode di atasnya.</p>
+                          <p className="mt-1">Untuk teks <strong>tebal</strong>, gunakan tanda <code className="bg-blue-900/40 px-1 rounded">**teks**</code> di sekitar kata yang ingin ditebalkan. Contoh: <code className="bg-blue-900/40 px-1 rounded">**wear colorful berkain**</code></p>
+                          <div className="mt-2 p-3 bg-blue-950/40 rounded-lg border border-blue-800/30">
+                            <p className="font-semibold text-blue-200 mb-1">📐 Ukuran Gambar Background yang Disarankan:</p>
+                            <p className="font-mono text-white text-sm">1080 × 1080 pixel</p>
+                            <p className="text-blue-300/80 mt-0.5">Rasio 1:1 (persegi) — karena layout kini berupa banner di tengah layar</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Title */}
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Judul Section</label>
+                            <input
+                              type="text"
+                              value={settings.dresscode?.title || ""}
+                              onChange={(e) => handleUpdateField("dresscode.title", e.target.value)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-white transition-all text-sm"
+                              placeholder="Dresscode"
+                            />
+                          </div>
+
+                          {/* Text */}
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Teks Dresscode</label>
+                            <textarea
+                              rows={5}
+                              value={settings.dresscode?.text || ""}
+                              onChange={(e) => handleUpdateField("dresscode.text", e.target.value)}
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-white transition-all text-sm font-mono leading-relaxed"
+                              placeholder="You are encouraged to **wear colorful berkain & berkebaya nusantara** (no white please)..."
+                            />
+                            <p className="text-[10px] text-neutral-500 mt-1">Gunakan **teks** untuk menebalkan kata. Contoh: **berkain & berkebaya**</p>
+                          </div>
+
+                          {/* Background Image */}
+                          <div>
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Gambar Background Section</label>
+                            <div className="w-full rounded-xl bg-neutral-900 border border-neutral-800 overflow-hidden mb-3" style={{ aspectRatio: '9/16', maxHeight: '320px' }}>
+                              {settings.dresscode?.image ? (
+                                <img
+                                  src={settings.dresscode.image}
+                                  alt="Dresscode Background"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                                  <FaImage className="text-neutral-600 text-2xl" />
+                                  <span className="text-neutral-600 text-xs">Belum ada gambar</span>
+                                </div>
+                              )}
+                            </div>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              id="dresscode-image-uploader"
+                              onChange={(e) => handleFileUpload(e, "dresscode.image")}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor="dresscode-image-uploader"
+                              className="w-full text-center bg-neutral-800 hover:bg-neutral-700 text-xs py-2 rounded-lg cursor-pointer transition font-medium block"
+                            >
+                              Unggah Gambar Background
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* BOTTOM SAVE BUTTON FOR SETTINGS */}
+                    <div className="border-t border-neutral-800/80 mt-8 pt-6 flex justify-end">
+                      <button
+                        onClick={() => setIsSaveModalOpen(true)}
+                        disabled={savingSettings}
+                        className="flex items-center gap-x-2 bg-white text-black hover:bg-neutral-200 transition font-bold px-6 py-2.5 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                      >
+                        {savingSettings ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-t-black border-black/20 rounded-full animate-spin"></div>
+                            <span>Menyimpan...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FaSave />
+                            <span>Simpan Perubahan</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Preview (Mobile Device mockup) */}
+                <div className="lg:col-span-4 hidden lg:flex flex-col lg:h-full lg:overflow-hidden justify-start">
+                  <div className="space-y-3 w-full flex flex-col items-center flex-1 min-h-0">
+                    <div className="flex items-center justify-between w-[270px] px-1">
+                      <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-x-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span>Live Preview</span>
+                      </span>
+
+                      <button
+                        id="refresh-preview-btn"
+                        onClick={(e) => {
+                          const iframe = document.getElementById("preview-iframe") as HTMLIFrameElement;
+                          if (iframe) iframe.src = iframe.src;
+                          const icon = e.currentTarget.querySelector("svg");
+                          icon?.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }], { duration: 600, easing: "ease-in-out" });
+                        }}
+                        className="group w-8 h-8 rounded-full border border-neutral-800 bg-neutral-900/80 text-neutral-400 hover:text-white hover:border-neutral-600 hover:bg-neutral-800 flex items-center justify-center transition-all"
+                        title="Refresh Preview"
+                        aria-label="Refresh Preview"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 transition-transform duration-300 group-hover:rotate-45">
+                          <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                          <polyline points="21 3 21 9 15 9" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* iPhone Mockup Frame */}
+                    <div className="relative mx-auto border-neutral-800 bg-neutral-950 border-[10px] rounded-[2rem] h-[580px] w-[270px] shadow-2xl overflow-hidden">
+                      {/* Notch */}
+                      <div className="absolute top-0 inset-x-0 h-4 bg-neutral-950 z-20 flex justify-center items-center">
+                        <div className="w-20 h-2 bg-black rounded-full"></div>
+                      </div>
+
+                      <div
+                        className="absolute top-0 left-0 origin-top-left bg-black"
+                        style={{
+                          width: '375px',
+                          height: '840px',
+                          transform: 'scale(0.666667)'
+                        }}
+                      >
+                        <iframe
+                          id="preview-iframe"
+                          src="/?preview=true"
+                          onLoad={() => {
+                            if (settings) {
+                              const iframe = document.getElementById("preview-iframe") as HTMLIFrameElement;
+                              if (iframe && iframe.contentWindow) {
+                                iframe.contentWindow.postMessage({
+                                  type: "UPDATE_PREVIEW",
+                                  settings: settings
+                                }, "*");
+                              }
+                            }
+                          }}
+                          className="w-full h-full border-none pt-4"
+                        ></iframe>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-center text-neutral-500 uppercase tracking-wider">Tampilan pratinjau mobile (Bypass timer)</p>
+                  </div>
+                </div>
+
+              </div>
+            )}
+
+            {/* TAB 2: GUEST MANAGEMENT */}
+            {activeTab === "guests" && (
+              <div className="space-y-6">
+
+                {/* Header controls for Guests */}
+                <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                  <div>
+                    <h2 className="text-xl font-ovo text-white uppercase tracking-wider">Daftar Undangan Tamu</h2>
+                    <p className="text-xs text-neutral-400">Total Tamu: {guests.length} | Terkirim: {guests.filter(g => g.status === "Terkirim").length} | Belum Dikirim: {guests.filter(g => g.status === "Belum Dikirim").length}</p>
+                  </div>
+
+                  <div className="flex gap-x-2">
+                    <button
+                      onClick={() => fetchInitialData(true)}
+                      disabled={isRefreshing}
+                      className="flex items-center gap-x-2 bg-neutral-900/60 hover:bg-neutral-800 text-white border border-neutral-700 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md disabled:opacity-50"
+                    >
+                      <FaSync className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                      <span className="hidden md:inline">{isRefreshing ? "Menyegarkan..." : "Refresh"}</span>
+                    </button>
+                    <button
+                      onClick={() => handleOpenGuestModal()}
+                      className="flex items-center gap-x-2 bg-white text-black hover:bg-neutral-200 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md"
+                    >
+                      <FaPlus />
+                      <span>Tambah Tamu</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setBulkGuestText("");
+                        setIsBulkGuestModalOpen(true);
+                      }}
+                      className="flex items-center gap-x-2 bg-neutral-800 text-white hover:bg-neutral-700 border border-neutral-600 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md"
+                    >
+                      <FaPlus />
+                      <span>Tambah Banyak (Bulk)</span>
+                    </button>
+                    {selectedGuests.length > 0 && (
+                      <button
+                        onClick={handleBulkDeleteGuests}
+                        className="flex items-center gap-x-2 bg-red-950/40 text-red-400 hover:bg-red-900/40 border border-red-900/50 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md"
+                      >
+                        <FaTrash className="w-4 h-4" />
+                        <span>Hapus {selectedGuests.length} Data</span>
+                      </button>
+                    )}
+                    {guests.length > 0 && (
+                      <button
+                        onClick={() => exportToExcel("guests")}
+                        className="flex items-center gap-x-2 bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/40 border border-emerald-900/50 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md"
+                      >
+                        <FaFileExcel className="w-4 h-4" />
+                        <span className="hidden md:inline">Ekspor Excel</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Filters and search bar */}
+                <div className="bg-neutral-900/60 border border-neutral-800/80 p-4 rounded-xl flex flex-col md:flex-row gap-4 items-center justify-between backdrop-blur-md">
+                  <div className="w-full md:w-1/3">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Cari nama atau nomor telepon..."
+                        value={guestSearch}
+                        onChange={(e) => { setGuestSearch(e.target.value); setGuestPage(1); }}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 pr-8 text-white focus:outline-none focus:border-white transition-all text-sm"
+                      />
+                      {guestSearch && (
+                        <button
+                          onClick={() => { setGuestSearch(""); setGuestPage(1); }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
+                          title="Hapus pencarian"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-x-2 w-full md:w-auto flex-wrap items-center">
+                    {/* Status filter buttons */}
+                    <button
+                      onClick={() => { setGuestFilter("all"); setGuestPage(1); }}
+                      className={`flex-1 md:flex-initial px-4 py-1.5 rounded-lg text-xs transition ${guestFilter === "all" ? "bg-white text-black font-semibold" : "text-neutral-400 bg-neutral-950 border border-neutral-800 hover:text-white"
+                        }`}
+                    >
+                      Semua
+                    </button>
+                    <button
+                      onClick={() => { setGuestFilter("Belum Dikirim"); setGuestPage(1); }}
+                      className={`flex-1 md:flex-initial px-4 py-1.5 rounded-lg text-xs transition ${guestFilter === "Belum Dikirim" ? "bg-white text-black font-semibold" : "text-neutral-400 bg-neutral-950 border border-neutral-800 hover:text-white"
+                        }`}
+                    >
+                      Belum Dikirim
+                    </button>
+                    <button
+                      onClick={() => { setGuestFilter("Terkirim"); setGuestPage(1); }}
+                      className={`flex-1 md:flex-initial px-4 py-1.5 rounded-lg text-xs transition ${guestFilter === "Terkirim" ? "bg-white text-black font-semibold" : "text-neutral-400 bg-neutral-950 border border-neutral-800 hover:text-white"
+                        }`}
+                    >
+                      Terkirim
+                    </button>
+
+                    {/* Sort dropdown */}
+                    <div className="relative">
+                      <select
+                        id="guest-sort-select"
+                        value={guestSort}
+                        onChange={(e) => { setGuestSort(e.target.value as "lama-baru" | "baru-lama"); setGuestPage(1); }}
+                        className="appearance-none bg-neutral-950 border border-neutral-800 text-neutral-300 text-xs rounded-lg px-3 py-1.5 pr-7 focus:outline-none focus:border-white transition-all cursor-pointer hover:border-neutral-600"
+                      >
+                        <option value="lama-baru">⬆ Lama → Baru</option>
+                        <option value="baru-lama">⬇ Baru → Lama</option>
+                      </select>
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-[10px]">▼</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Guests Table */}
+                <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+                  <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-340px)]">
+                    <table className="w-full border-collapse text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-neutral-800 bg-neutral-950/40 text-neutral-400 font-semibold">
+                          <th className="px-6 py-4 w-12">
+                            <input
+                              type="checkbox"
+                              checked={pagedGuests.length > 0 && pagedGuests.every(g => selectedGuests.includes(g._id))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedGuests(prev => Array.from(new Set([...prev, ...pagedGuests.map(g => g._id)])));
+                                } else {
+                                  setSelectedGuests(prev => prev.filter(id => !pagedGuests.some(g => g._id === id)));
+                                }
+                              }}
+                              className="rounded bg-neutral-900 border-neutral-700 text-neutral-500 focus:ring-0"
+                            />
+                          </th>
+                          <th className="px-6 py-4">Nama Tamu</th>
+                          <th className="px-6 py-4">Nomor WhatsApp</th>
+                          <th className="px-6 py-4">Link Undangan</th>
+                          <th className="px-6 py-4 text-center">Status Kirim</th>
+                          <th className="px-6 py-4 text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-800/60">
+                        {pagedGuests.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-12 text-center text-neutral-500 font-legan">
+                              Tidak ada data tamu yang cocok dengan filter atau pencarian.
+                            </td>
+                          </tr>
+                        ) : (
+                          pagedGuests.map((guest) => {
+                            const safeGuestName = guest.name.toLowerCase().replace(/&/g, '_and_');
+                            const guestInviteUrl = `/?to=${encodeURIComponent(safeGuestName)}`;
+                            return (
+                              <tr key={guest._id} className="hover:bg-neutral-950/20 transition-all">
+                                <td className="px-6 py-4">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedGuests.includes(guest._id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedGuests(prev => [...prev, guest._id]);
+                                      } else {
+                                        setSelectedGuests(prev => prev.filter(id => id !== guest._id));
+                                      }
+                                    }}
+                                    className="rounded bg-neutral-900 border-neutral-700 text-neutral-500 focus:ring-0"
+                                  />
+                                </td>
+                                <td className="px-6 py-4 font-semibold text-white">{guest.name}</td>
+                                <td className="px-6 py-4 text-neutral-300 font-mono">{guest.phone}</td>
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-x-2 group">
+                                    <span className="text-xs text-neutral-400 truncate max-w-[200px] font-mono">
+                                      {guestInviteUrl}
+                                    </span>
+                                    <button
+                                      onClick={() => handleCopyLink(guest.name)}
+                                      className="text-neutral-500 hover:text-white transition p-1"
+                                      title="Copy Link"
+                                    >
+                                      <FaCopy className="w-3.5 h-3.5" />
+                                    </button>
+                                    <a
+                                      href={guestInviteUrl}
+                                      target="_blank"
+                                      className="text-neutral-500 hover:text-white transition p-1"
+                                      title="View Invitation"
+                                    >
+                                      <FaExternalLinkAlt className="w-3 h-3" />
+                                    </a>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-center">
+                                  {guest.status === "Terkirim" ? (
+                                    <span className="inline-flex items-center gap-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                      <FaCheckCircle className="w-3 h-3" />
+                                      <span>Terkirim</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-x-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                      <FaHourglassHalf className="w-3 h-3 animate-pulse" />
+                                      <span>Belum Dikirim</span>
+                                    </span>
+                                  )}
+                                  {guest.sentAt && (
+                                    <span className="block text-[10px] text-neutral-500 mt-1 font-mono">
+                                      {new Date(guest.sentAt).toLocaleDateString()}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <div className="flex justify-end gap-x-2">
+                                    <button
+                                      onClick={() => handleSendWhatsApp(guest)}
+                                      className="flex items-center gap-x-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold rounded-lg text-xs transition shadow shadow-emerald-700/25"
+                                      title="Kirim Undangan WA"
+                                    >
+                                      <FaWhatsapp className="w-3.5 h-3.5" />
+                                      <span>Kirim</span>
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleCopyWATemplate(guest)}
+                                      className="flex items-center gap-x-1 px-3 py-1.5 bg-emerald-950/40 hover:bg-emerald-900/50 active:bg-emerald-950 text-emerald-400 hover:text-emerald-300 border border-emerald-800/50 hover:border-emerald-700 font-semibold rounded-lg text-xs transition"
+                                      title="Copy Template Pesan WA"
+                                    >
+                                      <FaWhatsapp className="w-3.5 h-3.5" />
+                                      <FaCopy className="w-3 h-3" />
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleOpenGuestModal(guest)}
+                                      className="p-2 text-neutral-400 hover:text-white bg-neutral-950 border border-neutral-800 rounded-lg hover:border-neutral-700 transition"
+                                      title="Edit Tamu"
+                                    >
+                                      <FaEdit className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleDeleteGuest(guest._id)}
+                                      className="p-2 text-red-400 hover:text-red-300 bg-red-950/20 border border-red-900/30 hover:border-red-900 rounded-lg transition"
+                                      title="Hapus Tamu"
+                                    >
+                                      <FaTrash className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {filteredGuests.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-neutral-800/60">
+                      {/* Info + per-page selector */}
+                      <div className="flex items-center gap-x-3 text-xs text-neutral-400">
+                        <span>
+                          {filteredGuests.length === guests.length
+                            ? `Menampilkan ${Math.min((guestPageClamped - 1) * guestPageSize + 1, filteredGuests.length)}–${Math.min(guestPageClamped * guestPageSize, filteredGuests.length)} dari ${filteredGuests.length} tamu`
+                            : `${filteredGuests.length} tamu (filter aktif)`}
+                        </span>
+                        <span className="text-neutral-700">|</span>
+                        <label htmlFor="guest-page-size" className="text-neutral-500">Tampil:</label>
+                        <select
+                          id="guest-page-size"
+                          value={guestPageSize}
+                          onChange={(e) => { setGuestPageSize(Number(e.target.value) as 20 | 30 | 50); setGuestPage(1); }}
+                          className="bg-neutral-950 border border-neutral-800 text-neutral-300 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-white transition cursor-pointer"
+                        >
+                          <option value={20}>20 / halaman</option>
+                          <option value={30}>30 / halaman</option>
+                          <option value={50}>50 / halaman</option>
+                        </select>
+                      </div>
+
+                      {/* Page navigation */}
+                      {guestTotalPages > 1 && (
+                        <div className="flex items-center gap-x-1">
+                          {/* Prev */}
+                          <button
+                            onClick={() => setGuestPage(p => Math.max(1, p - 1))}
+                            disabled={guestPageClamped === 1}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs"
+                          >
+                            ‹
+                          </button>
+
+                          {/* Page numbers */}
+                          {getPaginationPages(guestPageClamped, guestTotalPages).map((page, idx) =>
+                            page === "..." ? (
+                              <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-neutral-600 text-xs">…</span>
+                            ) : (
+                              <button
+                                key={page}
+                                onClick={() => setGuestPage(page as number)}
+                                className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition ${
+                                  guestPageClamped === page
+                                    ? "bg-white text-black shadow-md"
+                                    : "border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600"
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            )
+                          )}
+
+                          {/* Next */}
+                          <button
+                            onClick={() => setGuestPage(p => Math.min(guestTotalPages, p + 1))}
+                            disabled={guestPageClamped === guestTotalPages}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: RSVP */}
+            {activeTab === "rsvp" && (
+              <div className="space-y-8">
+
+                {/* RSVP SECTION */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-xl font-ovo text-white uppercase tracking-wider">Kehadiran (RSVP)</h2>
+                      <p className="text-xs text-neutral-400">Total Tamu Merespon: {wishes.length}</p>
+                    </div>
+                    <div className="flex gap-x-2">
+                      <button
+                        onClick={() => fetchInitialData(true)}
+                        disabled={isRefreshing}
+                        className="flex items-center gap-x-2 bg-neutral-900/60 hover:bg-neutral-800 text-white border border-neutral-700 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md disabled:opacity-50"
+                      >
+                        <FaSync className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                        <span className="hidden md:inline">{isRefreshing ? "Menyegarkan..." : "Refresh"}</span>
+                      </button>
+                      {wishes.length > 0 && (
+                        <button
+                          onClick={() => exportToExcel("rsvp")}
+                          className="flex items-center gap-x-2 bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/40 border border-emerald-900/50 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md"
+                        >
+                          <FaFileExcel className="w-4 h-4" />
+                          <span className="hidden md:inline">Ekspor Excel</span>
+                        </button>
+                      )}
+                      {selectedRsvps.length > 0 && (
+                        <button
+                          onClick={() => handleBulkDeleteWishes(selectedRsvps, setSelectedRsvps)}
+                          className="flex items-center gap-x-2 bg-red-950/40 text-red-400 hover:bg-red-900/40 border border-red-900/50 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md"
+                        >
+                          <FaTrash className="w-4 h-4" />
+                          <span>Hapus {selectedRsvps.length} Data</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* RSVP Counters */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-2xl p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-neutral-400 uppercase font-bold tracking-wider">Hadir</p>
+                        <p className="text-2xl font-bold text-white mt-1">
+                          {wishes.filter(w => w.attendance === "Hadir").reduce((sum, w) => sum + (Number(w.guests) || 0), 0)}
+                        </p>
+                      </div>
+                      <FaCheckCircle className="text-green-500 w-8 h-8 opacity-50" />
+                    </div>
+                    <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-2xl p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-neutral-400 uppercase font-bold tracking-wider">Tidak Hadir</p>
+                        <p className="text-2xl font-bold text-white mt-1">
+                          {wishes.filter(w => w.attendance === "Tidak Hadir").length}
+                        </p>
+                      </div>
+                      <FaTimesCircle className="text-red-500 w-8 h-8 opacity-50" />
+                    </div>
+                  </div>
+
+                  {/* Filter & Sort bar */}
+                  <div className="bg-neutral-900/60 border border-neutral-800/80 p-3 rounded-xl backdrop-blur-md">
+                    <div className="flex flex-wrap items-center gap-2 justify-between">
+                      {/* Search */}
+                      <div className="relative w-full md:w-1/3">
+                        <input
+                          id="rsvp-search-input"
+                          type="text"
+                          placeholder="Cari nama tamu..."
+                          value={rsvpSearch}
+                          onChange={(e) => { setRsvpSearch(e.target.value); setRsvpPage(1); }}
+                          className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 pr-8 text-white focus:outline-none focus:border-white transition-all text-sm"
+                        />
+                        {rsvpSearch && (
+                          <button
+                            onClick={() => { setRsvpSearch(""); setRsvpPage(1); }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
+                            title="Hapus pencarian"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                              <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Count */}
+                      <span className="text-xs text-neutral-500 shrink-0">
+                        {filteredRsvps.length !== wishes.length
+                          ? <>{filteredRsvps.length} <span className="text-neutral-600">/ {wishes.length}</span> respon</>
+                          : <>{wishes.length} respon</>}
+                      </span>
+
+                      {/* Dropdowns */}
+                      <div className="flex flex-wrap gap-2">
+                        {/* Sort */}
+                        <div className="relative">
+                          <select
+                            id="rsvp-sort-select"
+                            value={rsvpSort}
+                            onChange={(e) => { setRsvpSort(e.target.value as "lama-baru" | "baru-lama"); setRsvpPage(1); }}
+                            className="appearance-none bg-neutral-950 border border-neutral-800 text-neutral-300 text-xs rounded-lg px-3 py-1.5 pr-7 focus:outline-none focus:border-white transition-all cursor-pointer hover:border-neutral-600"
+                          >
+                            <option value="baru-lama">⬇ Baru → Lama</option>
+                            <option value="lama-baru">⬆ Lama → Baru</option>
+                          </select>
+                          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-[10px]">▼</span>
+                        </div>
+
+                        {/* Kehadiran */}
+                        <div className="relative">
+                          <select
+                            id="rsvp-attendance-filter"
+                            value={rsvpAttendanceFilter}
+                            onChange={(e) => { setRsvpAttendanceFilter(e.target.value as "semua" | "Hadir" | "Tidak Hadir"); setRsvpPage(1); }}
+                            className={`appearance-none border text-xs rounded-lg px-3 py-1.5 pr-7 focus:outline-none transition-all cursor-pointer ${
+                              rsvpAttendanceFilter === "Hadir"
+                                ? "bg-green-950/60 border-green-700 text-green-400 focus:border-green-400"
+                                : rsvpAttendanceFilter === "Tidak Hadir"
+                                ? "bg-red-950/60 border-red-700 text-red-400 focus:border-red-400"
+                                : "bg-neutral-950 border-neutral-800 text-neutral-300 hover:border-neutral-600 focus:border-white"
+                            }`}
+                          >
+                            <option value="semua">Kehadiran: Semua ({wishes.length})</option>
+                            <option value="Hadir">Hadir ({wishes.filter(w => w.attendance === "Hadir").length})</option>
+                            <option value="Tidak Hadir">Tidak Hadir ({wishes.filter(w => w.attendance === "Tidak Hadir").length})</option>
+                          </select>
+                          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-[10px]">▼</span>
+                        </div>
+
+                        {/* Jumlah Tamu */}
+                        <div className="relative">
+                          <select
+                            id="rsvp-guests-filter"
+                            value={rsvpGuestsFilter}
+                            onChange={(e) => { setRsvpGuestsFilter(e.target.value as "semua" | "1" | "2"); setRsvpPage(1); }}
+                            className="appearance-none bg-neutral-950 border border-neutral-800 text-neutral-300 text-xs rounded-lg px-3 py-1.5 pr-7 focus:outline-none focus:border-white transition-all cursor-pointer hover:border-neutral-600"
+                          >
+                            <option value="semua">Tamu: Semua ({wishes.length})</option>
+                            <option value="1">1 Orang ({wishes.filter(w => Number(w.guests) === 1).length})</option>
+                            <option value="2">2 Orang ({wishes.filter(w => Number(w.guests) === 2).length})</option>
+                          </select>
+                          <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 text-[10px]">▼</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RSVP Table */}
+                  <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+                    <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)]">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-neutral-800 text-neutral-400 text-sm bg-neutral-950 sticky top-0 z-10">
+                            <th className="px-6 py-4 font-semibold w-12">
+                              <input
+                                type="checkbox"
+                                checked={pagedRsvps.length > 0 && pagedRsvps.every(w => selectedRsvps.includes(w._id))}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedRsvps(prev => Array.from(new Set([...prev, ...pagedRsvps.map(w => w._id)])));
+                                  } else {
+                                    setSelectedRsvps(prev => prev.filter(id => !pagedRsvps.some(w => w._id === id)));
+                                  }
+                                }}
+                                className="rounded bg-neutral-900 border-neutral-700 text-neutral-500 focus:ring-0"
+                              />
+                            </th>
+                            <th className="px-6 py-4 font-semibold">Nama</th>
+                            <th className="px-6 py-4 font-semibold">Kehadiran</th>
+                            <th className="px-6 py-4 font-semibold">Jumlah Tamu</th>
+                            <th className="px-6 py-4 font-semibold">Tanggal Respon</th>
+                            <th className="px-6 py-4 font-semibold text-right">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-800/60 text-sm text-neutral-300">
+                          {pagedRsvps.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="py-8 text-center text-neutral-500">{rsvpSearch.trim() ? `Tidak ada RSVP dengan nama "${rsvpSearch}"` : "Belum ada respon RSVP"}</td>
+                            </tr>
+                          ) : (
+                            pagedRsvps.map((wish) => (
+                              <tr key={`rsvp-${wish._id}`} className="hover:bg-neutral-800/20 transition-colors">
+                                <td className="px-6 py-4">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedRsvps.includes(wish._id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedRsvps(prev => [...prev, wish._id]);
+                                      } else {
+                                        setSelectedRsvps(prev => prev.filter(id => id !== wish._id));
+                                      }
+                                    }}
+                                    className="rounded bg-neutral-900 border-neutral-700 text-neutral-500 focus:ring-0"
+                                  />
+                                </td>
+                                <td className="px-6 py-4 font-medium text-white">{wish.name}</td>
+                                <td className="px-6 py-4">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    wish.attendance === "Hadir" ? "bg-green-500/20 text-green-400" :
+                                    wish.attendance === "Tidak Hadir" ? "bg-red-500/20 text-red-400" :
+                                    wish.attendance === "Masih Ragu" ? "bg-yellow-500/20 text-yellow-400" :
+                                    "bg-neutral-500/20 text-neutral-400"
+                                  }`}>
+                                    {wish.attendance}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4">{wish.guests} Orang</td>
+                                <td className="px-6 py-4 text-neutral-500 text-xs font-mono">
+                                  {new Date(wish.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <button
+                                    onClick={() => handleDeleteWish(wish._id, "RSVP")}
+                                    className="p-2 text-red-400 hover:text-red-300 bg-red-950/20 border border-red-900/30 hover:border-red-900 rounded-lg transition"
+                                    title="Hapus RSVP"
+                                  >
+                                    <FaTrash className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* RSVP Pagination */}
+                    {sortedRsvps.length > 0 && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-neutral-800/60">
+                        <div className="flex items-center gap-x-3 text-xs text-neutral-400">
+                          <span>
+                            {`Menampilkan ${Math.min((rsvpPageClamped - 1) * rsvpPageSize + 1, sortedRsvps.length)}–${Math.min(rsvpPageClamped * rsvpPageSize, sortedRsvps.length)} dari ${sortedRsvps.length} respon`}
+                          </span>
+                          <span className="text-neutral-700">|</span>
+                          <label htmlFor="rsvp-page-size" className="text-neutral-500">Tampil:</label>
+                          <select
+                            id="rsvp-page-size"
+                            value={rsvpPageSize}
+                            onChange={(e) => { setRsvpPageSize(Number(e.target.value) as 20 | 30 | 50); setRsvpPage(1); }}
+                            className="bg-neutral-950 border border-neutral-800 text-neutral-300 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-white transition cursor-pointer"
+                          >
+                            <option value={20}>20 / halaman</option>
+                            <option value={30}>30 / halaman</option>
+                            <option value={50}>50 / halaman</option>
+                          </select>
+                        </div>
+                        {rsvpTotalPages > 1 && (
+                          <div className="flex items-center gap-x-1">
+                            <button
+                              onClick={() => setRsvpPage(p => Math.max(1, p - 1))}
+                              disabled={rsvpPageClamped === 1}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs"
+                            >‹</button>
+                            {getPaginationPages(rsvpPageClamped, rsvpTotalPages).map((page, idx) =>
+                              page === "..." ? (
+                                <span key={`rsvp-ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-neutral-600 text-xs">…</span>
+                              ) : (
+                                <button
+                                  key={`rsvp-page-${page}`}
+                                  onClick={() => setRsvpPage(page as number)}
+                                  className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition ${
+                                    rsvpPageClamped === page ? "bg-white text-black shadow-md" : "border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600"
+                                  }`}
+                                >{page}</button>
+                              )
+                            )}
+                            <button
+                              onClick={() => setRsvpPage(p => Math.min(rsvpTotalPages, p + 1))}
+                              disabled={rsvpPageClamped === rsvpTotalPages}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs"
+                            >›</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: WISHES */}
+            {activeTab === "wishes" && (
+              <div className="space-y-8">
+
+                {/* WISHES SECTION */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h2 className="text-xl font-ovo text-white uppercase tracking-wider">Ucapan &amp; Doa Restu</h2>
+                      <p className="text-xs text-neutral-400">Total ucapan: {validWishes.length}</p>
+                    </div>
+                    <div className="flex gap-x-2">
+                      <button
+                        onClick={() => fetchInitialData(true)}
+                        disabled={isRefreshing}
+                        className="flex items-center gap-x-2 bg-neutral-900/60 hover:bg-neutral-800 text-white border border-neutral-700 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md disabled:opacity-50"
+                      >
+                        <FaSync className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                        <span className="hidden md:inline">{isRefreshing ? "Menyegarkan..." : "Refresh"}</span>
+                      </button>
+                      {validWishes.length > 0 && (
+                        <button
+                          onClick={() => exportToExcel("wishes")}
+                          className="flex items-center gap-x-2 bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/40 border border-emerald-900/50 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md"
+                        >
+                          <FaFileExcel className="w-4 h-4" />
+                          <span className="hidden md:inline">Ekspor Excel</span>
+                        </button>
+                      )}
+                      {validWishes.length > 0 && (
+                        <button
+                          onClick={selectedWishes.length > 0 ? () => handleBulkDeleteWishes(selectedWishes, setSelectedWishes) : handleClearWishes}
+                          className="flex items-center gap-x-2 bg-red-950/40 text-red-400 hover:bg-red-900/40 border border-red-900/50 transition font-bold px-4 py-2 rounded-lg text-sm shadow-md"
+                        >
+                          <FaTrash className="w-4 h-4" />
+                          <span className="hidden md:inline">{selectedWishes.length > 0 ? `Hapus ${selectedWishes.length} Data` : "Hapus Semua"}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Search bar */}
+                  <div className="bg-neutral-900/60 border border-neutral-800/80 p-3 rounded-xl backdrop-blur-md flex flex-wrap items-center gap-2 justify-between">
+                    <div className="relative w-full md:w-1/3">
+                      <input
+                        id="wish-search-input"
+                        type="text"
+                        placeholder="Cari nama atau isi ucapan..."
+                        value={wishSearch}
+                        onChange={(e) => { setWishSearch(e.target.value); setWishPage(1); }}
+                        className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 pr-8 text-white focus:outline-none focus:border-white transition-all text-sm"
+                      />
+                      {wishSearch && (
+                        <button
+                          onClick={() => { setWishSearch(""); setWishPage(1); }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white transition-colors"
+                          title="Hapus pencarian"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                    <span className="text-xs text-neutral-500 shrink-0">
+                      {sortedWishes.length} ucapan{wishSearch.trim() ? " ditemukan" : ""}
+                    </span>
+                  </div>
+
+                  {/* Wishes Table */}
+                  <div className="bg-neutral-900/60 border border-neutral-800/80 rounded-2xl overflow-hidden backdrop-blur-md">
+                    <div className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-380px)]">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-neutral-800 text-neutral-400 text-sm bg-neutral-950 sticky top-0 z-10">
+                            <th className="px-6 py-4 font-semibold w-12">
+                              <input
+                                type="checkbox"
+                                checked={pagedWishes.length > 0 && pagedWishes.every(w => selectedWishes.includes(w._id))}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedWishes(prev => Array.from(new Set([...prev, ...pagedWishes.map(w => w._id)])));
+                                  } else {
+                                    setSelectedWishes(prev => prev.filter(id => !pagedWishes.some(w => w._id === id)));
+                                  }
+                                }}
+                                className="rounded bg-neutral-900 border-neutral-700 text-neutral-500 focus:ring-0"
+                              />
+                            </th>
+                            <th className="px-6 py-4 font-semibold w-1/4">Nama</th>
+                            <th className="px-6 py-4 font-semibold">Ucapan</th>
+                            <th className="px-6 py-4 font-semibold w-36">
+                              <div className="flex items-center gap-x-2">
+                                <span>Tanggal</span>
+                                <div className="relative">
+                                  <select
+                                    id="wish-sort-select"
+                                    value={wishSort}
+                                    onChange={(e) => { setWishSort(e.target.value as "lama-baru" | "baru-lama"); setWishPage(1); }}
+                                    className="appearance-none bg-neutral-950 border border-neutral-800 text-neutral-300 text-xs rounded px-2 py-0.5 pr-5 focus:outline-none focus:border-white transition cursor-pointer hover:border-neutral-600"
+                                  >
+                                    <option value="baru-lama">⬇ Baru</option>
+                                    <option value="lama-baru">⬆ Lama</option>
+                                  </select>
+                                  <span className="pointer-events-none absolute right-1 top-1/2 -translate-y-1/2 text-neutral-500 text-[9px]">▼</span>
+                                </div>
+                              </div>
+                            </th>
+                            <th className="px-6 py-4 font-semibold text-right">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-800/60 text-sm text-neutral-300">
+                          {pagedWishes.length === 0 ? (
+                            <tr>
+                              <td colSpan={5} className="py-8 text-center text-neutral-500">{wishSearch.trim() ? `Tidak ada ucapan yang cocok dengan "${wishSearch}"` : "Belum ada ucapan yang masuk."}</td>
+                            </tr>
+                          ) : (
+                            pagedWishes.map((wish) => (
+                              <tr key={wish._id} className="hover:bg-neutral-800/20 transition-colors">
+                                <td className="px-6 py-4">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedWishes.includes(wish._id)}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedWishes(prev => [...prev, wish._id]);
+                                      } else {
+                                        setSelectedWishes(prev => prev.filter(id => id !== wish._id));
+                                      }
+                                    }}
+                                    className="rounded bg-neutral-900 border-neutral-700 text-neutral-500 focus:ring-0"
+                                  />
+                                </td>
+                                <td className="px-6 py-4 font-medium text-white">{wish.name}</td>
+                                <td className="px-6 py-4 text-neutral-300 italic">
+                                  <span className="line-clamp-2">&ldquo;{wish.message}&rdquo;</span>
+                                </td>
+                                <td className="px-6 py-4 text-neutral-500 text-xs font-mono">
+                                  {new Date(wish.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                  <button
+                                    onClick={() => handleDeleteWish(wish._id, "Ucapan")}
+                                    className="p-2 text-red-400 hover:text-red-300 bg-red-950/20 border border-red-900/30 hover:border-red-900 rounded-lg transition"
+                                    title="Hapus Ucapan"
+                                  >
+                                    <FaTrash className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Wishes Pagination */}
+                    {validWishes.length > 0 && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-neutral-800/60">
+                        <div className="flex items-center gap-x-3 text-xs text-neutral-400">
+                          <span>
+                            {`Menampilkan ${Math.min((wishPageClamped - 1) * wishPageSize + 1, validWishes.length)}–${Math.min(wishPageClamped * wishPageSize, validWishes.length)} dari ${validWishes.length} ucapan`}
+                          </span>
+                          <span className="text-neutral-700">|</span>
+                          <label htmlFor="wish-page-size" className="text-neutral-500">Tampil:</label>
+                          <select
+                            id="wish-page-size"
+                            value={wishPageSize}
+                            onChange={(e) => { setWishPageSize(Number(e.target.value) as 20 | 30 | 50); setWishPage(1); }}
+                            className="bg-neutral-950 border border-neutral-800 text-neutral-300 text-xs rounded-md px-2 py-1 focus:outline-none focus:border-white transition cursor-pointer"
+                          >
+                            <option value={20}>20 / halaman</option>
+                            <option value={30}>30 / halaman</option>
+                            <option value={50}>50 / halaman</option>
+                          </select>
+                        </div>
+                        {wishTotalPages > 1 && (
+                          <div className="flex items-center gap-x-1">
+                            <button
+                              onClick={() => setWishPage(p => Math.max(1, p - 1))}
+                              disabled={wishPageClamped === 1}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs"
+                            >‹</button>
+                            {getPaginationPages(wishPageClamped, wishTotalPages).map((page, idx) =>
+                              page === "..." ? (
+                                <span key={`wish-ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-neutral-600 text-xs">…</span>
+                              ) : (
+                                <button
+                                  key={`wish-page-${page}`}
+                                  onClick={() => setWishPage(page as number)}
+                                  className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-medium transition ${
+                                    wishPageClamped === page ? "bg-white text-black shadow-md" : "border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600"
+                                  }`}
+                                >{page}</button>
+                              )
+                            )}
+                            <button
+                              onClick={() => setWishPage(p => Math.min(wishTotalPages, p + 1))}
+                              disabled={wishPageClamped === wishTotalPages}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-neutral-800 text-neutral-400 hover:text-white hover:border-neutral-600 disabled:opacity-30 disabled:cursor-not-allowed transition text-xs"
+                            >›</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+      </main>
+
+      {/* GUEST ADD/EDIT MODAL */}
+      {isGuestModalOpen && currentEditingGuest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
+              <h3 className="font-ovo text-base text-white uppercase tracking-wider">
+                {currentEditingGuest._id ? "Edit Data Tamu" : "Tambah Tamu Undangan"}
+              </h3>
+              <button
+                onClick={() => setIsGuestModalOpen(false)}
+                className="text-neutral-500 hover:text-white transition text-lg"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5 uppercase tracking-wide">Nama Tamu</label>
+                <input
+                  type="text"
+                  value={currentEditingGuest.name || ""}
+                  onChange={(e) => setCurrentEditingGuest(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-white transition text-sm font-legan"
+                  placeholder="Contoh: Budi Santoso"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5 uppercase tracking-wide">Nomor WhatsApp <span className="text-neutral-500 lowercase normal-case">(Opsional)</span></label>
+                <input
+                  type="text"
+                  value={currentEditingGuest.phone || ""}
+                  onChange={(e) => setCurrentEditingGuest(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-white transition text-sm font-mono"
+                  placeholder="Contoh: 08123456789 atau 628123456789"
+                />
+                <span className="block text-[10px] text-neutral-500 mt-1">Saran: Gunakan format angka tanpa spasi atau karakter khusus.</span>
+              </div>
+            </div>
+
+            <div className="border-t border-neutral-800 px-6 py-4 flex justify-end gap-x-2">
+              <button
+                onClick={() => setIsGuestModalOpen(false)}
+                className="px-4 py-2 border border-neutral-800 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-lg text-xs transition font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveGuest}
+                className="px-4 py-2 bg-white text-black hover:bg-neutral-200 rounded-lg text-xs transition font-bold shadow"
+              >
+                Simpan Tamu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BULK GUEST ADD MODAL */}
+      {isBulkGuestModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+            <div className="border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
+              <h3 className="font-ovo text-base text-white uppercase tracking-wider">
+                Tambah Banyak Tamu (Bulk)
+              </h3>
+              <button
+                onClick={() => { if (!isSavingBulk) setIsBulkGuestModalOpen(false); }}
+                className="text-neutral-500 hover:text-white transition text-lg disabled:opacity-30"
+                disabled={isSavingBulk}
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-neutral-400 mb-1.5 uppercase tracking-wide">Daftar Nama Tamu</label>
+                <p className="text-[11px] text-neutral-500 mb-2 leading-relaxed">
+                  Masukkan nama tamu, pisahkan setiap nama dengan enter (baris baru).
+                </p>
+                <textarea
+                  value={bulkGuestText}
+                  onChange={(e) => setBulkGuestText(e.target.value)}
+                  disabled={isSavingBulk}
+                  className="w-full h-48 bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-white transition text-sm font-legan resize-none disabled:opacity-40"
+                  placeholder="Masukkan teks..."
+                ></textarea>
+              </div>
+
+              {/* Live count badge */}
+              {bulkGuestNames.length > 0 && !isSavingBulk && (
+                <div className="flex items-center gap-x-2 text-xs text-neutral-400">
+                  <span className="inline-flex items-center gap-x-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white font-semibold">
+                    <FaUsers className="w-3 h-3" />
+                    {bulkGuestNames.length} nama terdeteksi
+                  </span>
+                  <span>— siap untuk ditambahkan</span>
+                </div>
+              )}
+
+              {/* Progress bar saat loading */}
+              {isSavingBulk && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs text-neutral-400">
+                    <span className="flex items-center gap-x-1.5 animate-pulse">
+                      <div className="w-3 h-3 border-2 border-t-white border-white/20 rounded-full animate-spin"></div>
+                      Sedang menambahkan {bulkProgress?.total ?? bulkGuestNames.length} tamu ke database...
+                    </span>
+                    <span className="font-mono text-white font-semibold">
+                      {bulkProgress ? `${bulkProgress.current}/${bulkProgress.total}` : "0/" + bulkGuestNames.length}
+                    </span>
+                  </div>
+                  <div className="w-full bg-neutral-800 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-white h-2 rounded-full transition-all duration-500"
+                      style={{ width: bulkProgress && bulkProgress.total > 0 ? `${(bulkProgress.current / bulkProgress.total) * 100}%` : "30%" }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-neutral-500 text-center">Mohon jangan tutup atau refresh halaman ini</p>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-neutral-800 px-6 py-4 flex justify-end gap-x-2">
+              <button
+                onClick={() => setIsBulkGuestModalOpen(false)}
+                className="px-4 py-2 border border-neutral-800 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-lg text-xs transition font-semibold disabled:opacity-30"
+                disabled={isSavingBulk}
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleOpenBulkConfirm}
+                disabled={isSavingBulk || bulkGuestNames.length === 0}
+                className="px-5 py-2 bg-white text-black hover:bg-neutral-200 rounded-lg text-xs transition font-bold shadow disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-x-2"
+              >
+                <FaPlus className="w-3 h-3" />
+                {isSavingBulk ? "Menambahkan..." : "Tambahkan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BULK CONFIRM MODAL */}
+      {isBulkConfirmOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="border-b border-neutral-800 px-6 py-4">
+              <h3 className="font-ovo text-base text-white uppercase tracking-wider flex items-center gap-x-2">
+                <FaUsers className="text-white w-4 h-4" />
+                Konfirmasi Penambahan
+              </h3>
+            </div>
+            <div className="p-6 space-y-3">
+              <p className="text-sm text-neutral-300 leading-relaxed">
+                Anda akan menambahkan
+              </p>
+              <div className="flex items-center justify-center py-4">
+                <span className="text-5xl font-bold text-white font-ovo">{bulkGuestNames.length}</span>
+                <span className="ml-3 text-neutral-400 text-sm">tamu baru</span>
+              </div>
+              <p className="text-xs text-neutral-500 text-center">
+                Semua tamu akan ditambahkan sekaligus. Proses ini cepat dan tidak bisa dibatalkan.
+              </p>
+            </div>
+            <div className="border-t border-neutral-800 px-6 py-4 flex justify-end gap-x-2">
+              <button
+                onClick={() => setIsBulkConfirmOpen(false)}
+                className="px-4 py-2 border border-neutral-800 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-lg text-xs transition font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveBulkGuests}
+                className="px-5 py-2 bg-white text-black hover:bg-neutral-200 rounded-lg text-xs transition font-bold shadow flex items-center gap-x-2"
+              >
+                <FaCheckCircle className="w-3 h-3" />
+                Ya, Tambahkan Semua
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SAVE SETTINGS CONFIRMATION MODAL */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
+              <h3 className="font-ovo text-base text-white uppercase tracking-wider flex items-center gap-x-2">
+                <FaLock className="text-amber-500 w-4 h-4" />
+                <span>Konfirmasi Simpan</span>
+              </h3>
+              <button
+                onClick={() => setIsSaveModalOpen(false)}
+                className="text-neutral-500 hover:text-white transition text-lg"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-[#CCCCCC] leading-relaxed">
+                Apakah Anda yakin ingin menyimpan seluruh perubahan pengaturan undangan pernikahan ini? Perubahan akan langsung diterapkan pada halaman undangan tamu.
+              </p>
+            </div>
+
+            <div className="border-t border-neutral-800 px-6 py-4 flex justify-end gap-x-2">
+              <button
+                onClick={() => setIsSaveModalOpen(false)}
+                className="px-4 py-2 border border-neutral-800 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-lg text-xs transition font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  setIsSaveModalOpen(false);
+                  handleSaveSettings();
+                }}
+                className="px-4 py-2 bg-white text-black hover:bg-neutral-200 rounded-lg text-xs transition font-bold shadow"
+              >
+                Ya, Simpan Perubahan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULL SCREEN SAVING LOADING OVERLAY */}
+      {savingSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 border-4 border-t-white border-white/20 rounded-full animate-spin mx-auto"></div>
+            <p className="text-sm tracking-widest text-[#8c8c8c] uppercase animate-pulse">Menyimpan pengaturan...</p>
+          </div>
+        </div>
+      )}
+      {/* SESSION WARNING & EXTEND RE-AUTHENTICATION MODAL */}
+      {isExtendModalOpen && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl relative">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-amber-500 via-red-500 to-amber-500"></div>
+
+            {/* Header */}
+            <div className="border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-x-2.5">
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <FaHourglassHalf className="w-4 h-4 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-ovo text-sm text-white uppercase tracking-wider font-semibold">
+                    Pemberitahuan Sesi Berakhir
+                  </h3>
+                  <p className="text-[11px] text-neutral-400 font-mono">Keamanan Dashboard Admin</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsExtendModalOpen(false)}
+                className="text-neutral-500 hover:text-white transition text-lg"
+                title="Tutup (Tetap lanjut sampai batas waktu)"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-4">
+              {/* Countdown Box */}
+              <div className="bg-neutral-950/80 border border-neutral-800 rounded-xl p-4 text-center space-y-1.5">
+                <p className="text-xs text-neutral-400 uppercase tracking-wider">Sisa Waktu Sesi Anda</p>
+                <div className="text-3xl font-mono font-bold text-white tracking-widest flex items-center justify-center gap-x-2">
+                  <span
+                    className={
+                      remainingSeconds <= 120
+                        ? "text-red-400 animate-pulse"
+                        : remainingSeconds <= 300
+                        ? "text-amber-400"
+                        : "text-emerald-400"
+                    }
+                  >
+                    {formatSessionTime(remainingSeconds)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-neutral-400 leading-relaxed">
+                  {remainingSeconds > 0
+                    ? "Dashboard akan otomatis logout jika waktu habis."
+                    : "Sesi telah habis, sistem sedang logout..."}
+                </p>
+              </div>
+
+              <p className="text-xs text-[#CCCCCC] leading-relaxed">
+                Sesi admin dibatasi 15 menit. Masukkan kata sandi admin untuk memperpanjang sesi Anda selama <strong>15 menit ke depan</strong> tanpa logout. Jika tidak diisi, dashboard akan otomatis logout saat waktu habis.
+              </p>
+
+              {/* Password Form */}
+              <form onSubmit={handleExtendSession} className="space-y-3 pt-1">
+                <div>
+                  <label className="block text-xs font-semibold text-neutral-400 mb-1.5 uppercase tracking-wide">
+                    Kata Sandi Admin
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showExtendPassword ? "text" : "password"}
+                      value={extendPassword}
+                      onChange={(e) => setExtendPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoFocus
+                      className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 pr-10 text-white focus:outline-none focus:border-white transition-all text-sm font-mono tracking-widest"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowExtendPassword(!showExtendPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-white transition"
+                    >
+                      {showExtendPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
+                  {extendError && (
+                    <p className="text-red-400 text-xs mt-1.5 bg-red-950/20 border border-red-900/20 py-1 px-2.5 rounded-lg font-mono">
+                      {extendError}
+                    </p>
+                  )}
+                </div>
+
+                <div className="border-t border-neutral-800 pt-4 flex items-center justify-between gap-x-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsExtendModalOpen(false)}
+                    className="px-3.5 py-2 border border-neutral-800 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-lg text-xs transition font-semibold"
+                  >
+                    Nanti Saja
+                  </button>
+                  <div className="flex items-center gap-x-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsExtendModalOpen(false);
+                        handleLogout();
+                      }}
+                      className="px-3 py-2 text-red-400 hover:text-red-300 hover:bg-red-950/30 rounded-lg text-xs transition font-medium"
+                    >
+                      Keluar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isExtendingSession || !extendPassword.trim()}
+                      className="px-4 py-2 bg-white text-black hover:bg-neutral-200 disabled:opacity-50 rounded-lg text-xs transition font-bold shadow flex items-center gap-x-1.5"
+                    >
+                      {isExtendingSession ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-t-black border-black/20 rounded-full animate-spin"></div>
+                          <span>Memverifikasi...</span>
+                        </>
+                      ) : (
+                        <span>Perpanjang (+15 Mnt)</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOGOUT CONFIRMATION MODAL */}
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="border-b border-neutral-800 px-6 py-4 flex items-center justify-between">
+              <h3 className="font-ovo text-base text-white uppercase tracking-wider flex items-center gap-x-2">
+                <FaLock className="text-red-500 w-4 h-4" />
+                <span>Konfirmasi Keluar</span>
+              </h3>
+              <button
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="text-neutral-500 hover:text-white transition text-lg"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="p-6">
+              <p className="text-sm text-[#CCCCCC] leading-relaxed">
+                Apakah Anda yakin ingin keluar dari dashboard kelola? Sesi Anda akan berakhir dan Anda perlu memasukkan password lagi untuk mengakses halaman ini.
+              </p>
+            </div>
+
+            <div className="border-t border-neutral-800 px-6 py-4 flex justify-end gap-x-2">
+              <button
+                onClick={() => setIsLogoutModalOpen(false)}
+                className="px-4 py-2 border border-neutral-800 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-lg text-xs transition font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  setIsLogoutModalOpen(false);
+                  handleLogout();
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs transition font-bold shadow"
+              >
+                Ya, Keluar Sesi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── TOAST NOTIFICATION STACK ── */}
+      <div className="fixed bottom-6 right-6 z-[200] flex flex-col-reverse gap-3 pointer-events-none">
+        {toasts.map(toast => (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-3 px-5 py-3.5 rounded-xl shadow-2xl border text-sm font-medium backdrop-blur-md
+              animate-[slideInRight_0.35s_ease-out]
+              ${toast.type === "success"
+                ? "bg-emerald-950/90 border-emerald-700/60 text-emerald-300"
+                : toast.type === "error"
+                  ? "bg-red-950/90 border-red-700/60 text-red-300"
+                  : "bg-neutral-900/90 border-neutral-700/60 text-neutral-200"
+              }`}
+          >
+            <span className="text-lg">
+              {toast.type === "success" ? "✅" : toast.type === "error" ? "❌" : "ℹ️"}
+            </span>
+            <span>{toast.message}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* ── CUSTOM CONFIRM MODAL ── */}
+      {confirmModal?.open && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-neutral-900 border border-neutral-700 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl">
+            <div className="px-6 py-5">
+              <p className="text-white text-sm leading-relaxed">{confirmModal.message}</p>
+            </div>
+            <div className="border-t border-neutral-800 px-6 py-4 flex justify-end gap-x-3">
+              <button
+                onClick={() => setConfirmModal(null)}
+                className="px-5 py-2 border border-neutral-700 hover:bg-neutral-800 text-neutral-400 hover:text-white rounded-lg text-xs transition font-semibold"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  confirmModal.onConfirm();
+                  setConfirmModal(null);
+                }}
+                className="px-5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs transition font-bold shadow"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
