@@ -53,6 +53,57 @@ const DEFAULT_GALLERY = [
   "/dummy/gallery-4.jpg",
 ];
 
+/* ── Scroll-triggered reveal animation (matching Eksklusif-9 fadeInUp / zoomIn) ── */
+function Reveal({
+  children,
+  variant = "fadeInUp",
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  variant?: "fadeInUp" | "zoomIn" | "fadeIn";
+  delay?: number;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  const hiddenClass =
+    variant === "zoomIn"
+      ? "opacity-0 scale-90"
+      : variant === "fadeIn"
+      ? "opacity-0"
+      : "opacity-0 translate-y-7";
+
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={`transition-all duration-700 ease-out will-change-transform ${
+        visible ? "opacity-100 translate-y-0 scale-100" : hiddenClass
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 /* ── Reusable heading: ornament + serif word + script word (overlapping) ── */
 function SectionTitle({
   top,
@@ -68,7 +119,7 @@ function SectionTitle({
   upper?: boolean;
 }) {
   return (
-    <div className="flex flex-col items-center text-center" data-aos="fade-up">
+    <Reveal variant="fadeInUp" className="flex flex-col items-center text-center">
       {ornament && <img src={ORNAMENT} alt="" className="w-[42px] mb-1 select-none" />}
       <h2
         className={`font-playfair leading-none ${upper ? "text-[30px] tracking-wide" : "text-[32px]"} ${
@@ -82,7 +133,7 @@ function SectionTitle({
       >
         {bottom}
       </span>
-    </div>
+    </Reveal>
   );
 }
 
@@ -545,31 +596,35 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         >
           <span id="section-home" className="absolute top-0" />
           <div className="absolute inset-0 bg-black/15" />
-          <div className="relative z-10">
+          <Reveal variant="fadeInUp" className="relative z-10">
             <p className="font-playfair text-[13px] drop-shadow">The Wedding Of</p>
             <h1 className="font-alex text-[40px] leading-tight drop-shadow-md">{couple}</h1>
             <p className="font-playfair text-[12px] drop-shadow capitalize">{fullDate}</p>
-          </div>
-          <div className="relative z-10 flex gap-2">
+          </Reveal>
+          <Reveal variant="fadeInUp" delay={150} className="relative z-10 flex gap-2">
             {countdownBoxes.map((b) => (
               <div key={b.l} className="bg-[#928573]/85 rounded-[5px] w-[54px] py-1.5 text-center">
                 <span className="block text-[18px] font-semibold leading-none">{b.v}</span>
                 <span className="block text-[10px] mt-0.5">{b.l}</span>
               </div>
             ))}
-          </div>
+          </Reveal>
         </section>
 
         {/* ─── 2. OUR WEDDING + photo strip ─── */}
         <section className="bg-white pt-10 pb-6 text-center">
-          <img src={ORNAMENT} alt="" className="w-[42px] mx-auto mb-1" />
-          <h2 className="font-playfair text-[24px] text-[#383838] leading-none">Our</h2>
-          <h2 className="font-playfair text-[34px] text-[#383838] leading-tight">Wedding</h2>
-          <p className="font-playfair italic text-[12px] text-[#383838] px-6 mt-5 leading-snug">
-            Tanpa mengurangi rasa hormat, kami bermaksud mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara
-            pernikahan kami
-          </p>
-          <div className="overflow-hidden mt-3">
+          <Reveal variant="fadeInUp">
+            <img src={ORNAMENT} alt="" className="w-[42px] mx-auto mb-1" />
+            <h2 className="font-playfair text-[24px] text-[#383838] leading-none">Our</h2>
+            <h2 className="font-playfair text-[34px] text-[#383838] leading-tight">Wedding</h2>
+          </Reveal>
+          <Reveal variant="fadeInUp" delay={120}>
+            <p className="font-playfair italic text-[12px] text-[#383838] px-6 mt-5 leading-snug">
+              Tanpa mengurangi rasa hormat, kami bermaksud mengundang Bapak/Ibu/Saudara/i untuk menghadiri acara
+              pernikahan kami
+            </p>
+          </Reveal>
+          <Reveal variant="fadeIn" delay={200} className="overflow-hidden mt-3">
             <div className="flex gap-1 w-max animate-marquee">
               {[...galleryImages, ...galleryImages].map((src, i) => (
                 <img
@@ -580,13 +635,13 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                 />
               ))}
             </div>
-          </div>
+          </Reveal>
         </section>
 
         {/* ─── 3. THE BRIDE ─── */}
         <section id="section-groomBride" className="bg-white pt-4">
           <div className="flex items-end">
-            <div className="w-1/2 flex flex-col items-center text-center px-3 pb-16">
+            <Reveal variant="fadeInUp" className="w-1/2 flex flex-col items-center text-center px-3 pb-16">
               <span className="font-madi text-[44px] text-[#928573] leading-none">
                 {cfg.brideNickName || "Elia"}
               </span>
@@ -606,15 +661,15 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                   <FaInstagram /> @{cfg.brideInstagram.replace("@", "")}
                 </a>
               )}
-            </div>
-            <div className="w-1/2 flex flex-col items-center pr-2">
+            </Reveal>
+            <Reveal variant="zoomIn" delay={120} className="w-1/2 flex flex-col items-center pr-2">
               <img src={THE_BRIDE} alt="The Bride" className="w-[90%] -mb-1" />
               <img
                 src={bridePhoto}
                 alt={cfg.bride}
                 className="w-full h-[270px] object-cover object-top rounded-t-full"
               />
-            </div>
+            </Reveal>
           </div>
           <div className="h-10 bg-[#E1D6C7]" />
         </section>
@@ -622,15 +677,15 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         {/* ─── 4. THE GROOM ─── */}
         <section className="bg-white pt-4">
           <div className="flex items-start">
-            <div className="w-1/2 flex flex-col items-center pl-2">
+            <Reveal variant="zoomIn" className="w-1/2 flex flex-col items-center pl-2">
               <img src={THE_GROOM} alt="The Groom" className="w-[90%] -mb-1" />
               <img
                 src={groomPhoto}
                 alt={cfg.groom}
                 className="w-full h-[270px] object-cover object-top rounded-t-full"
               />
-            </div>
-            <div className="w-1/2 flex flex-col items-center text-center px-3 pt-10">
+            </Reveal>
+            <Reveal variant="fadeInUp" delay={120} className="w-1/2 flex flex-col items-center text-center px-3 pt-10">
               <span className="font-madi text-[44px] text-[#928573] leading-none">
                 {cfg.groomNickName || "Juan"}
               </span>
@@ -650,7 +705,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                   <FaInstagram /> @{cfg.groomInstagram.replace("@", "")}
                 </a>
               )}
-            </div>
+            </Reveal>
           </div>
         </section>
 
@@ -659,25 +714,29 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
           <SectionTitle top="SAVE" bottom="The Date" upper />
           <div className="grid grid-cols-2 gap-3 mt-6 items-stretch">
             {cfg.holyMatrimony?.enabled !== false && (
-              <EventCard
-                title="Pemberkatan"
-                sub="Nikah"
-                time={cfg.holyMatrimony?.time || "Pukul 09.00 WIB"}
-                place={cfg.holyMatrimony?.place || "GMAHK Gresik"}
-                detail={cfg.holyMatrimony?.place_details}
-                maps={cfg.holyMatrimony?.googleMapsLink}
-              />
+              <Reveal variant="fadeInUp" delay={100} className="flex">
+                <EventCard
+                  title="Pemberkatan"
+                  sub="Nikah"
+                  time={cfg.holyMatrimony?.time || "Pukul 09.00 WIB"}
+                  place={cfg.holyMatrimony?.place || "GMAHK Gresik"}
+                  detail={cfg.holyMatrimony?.place_details}
+                  maps={cfg.holyMatrimony?.googleMapsLink}
+                />
+              </Reveal>
             )}
             {cfg.weddingReception?.enabled !== false && (
-              <EventCard
-                title="Resepsi"
-                sub="Nikah"
-                time={cfg.weddingReception?.time || "Pukul 13.00 WIB"}
-                place={cfg.weddingReception?.place || "Gedung Dakwah Muhammadiyah Gresik"}
-                detail={cfg.weddingReception?.place_details}
-                maps={cfg.weddingReception?.googleMapsLink}
-                bandTop
-              />
+              <Reveal variant="fadeInUp" delay={200} className="flex">
+                <EventCard
+                  title="Resepsi"
+                  sub="Nikah"
+                  time={cfg.weddingReception?.time || "Pukul 13.00 WIB"}
+                  place={cfg.weddingReception?.place || "Gedung Dakwah Muhammadiyah Gresik"}
+                  detail={cfg.weddingReception?.place_details}
+                  maps={cfg.weddingReception?.googleMapsLink}
+                  bandTop
+                />
+              </Reveal>
             )}
           </div>
         </section>
@@ -689,8 +748,8 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
             <div className="flex flex-col gap-7 mt-6">
               {Array.from({ length: Math.min(cfg.timelineCount || 3, 5) }, (_, idx) => idx + 1)
                 .filter((n) => cfg[`timeline_${n}`] || cfg[`timeline_${n}_content`])
-                .map((n) => (
-                  <div key={n} className="flex flex-col items-center text-center">
+                .map((n, idx) => (
+                  <Reveal key={n} variant="fadeInUp" delay={idx * 100} className="flex flex-col items-center text-center">
                     <img
                       src={storyImages[n - 1]}
                       alt={cfg[`timeline_${n}`] || `Story ${n}`}
@@ -702,7 +761,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                     <p className="font-lligat text-[13px] text-[#383838] leading-snug mt-1 max-w-[260px]">
                       {cfg[`timeline_${n}_content`]}
                     </p>
-                  </div>
+                  </Reveal>
                 ))}
             </div>
           </section>
@@ -718,13 +777,14 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
             return (
               <div className={`grid ${gridCols} mt-4`}>
                 {galleryImages.map((src, i) => (
-                  <img
-                    key={i}
-                    src={src}
-                    alt={`Gallery ${i + 1}`}
-                    onClick={() => setLightboxIndex(i)}
-                    className={`w-full ${itemHeight} object-cover rounded-md cursor-pointer hover:opacity-90 transition`}
-                  />
+                  <Reveal key={i} variant="zoomIn" delay={(i % 4) * 80}>
+                    <img
+                      src={src}
+                      alt={`Gallery ${i + 1}`}
+                      onClick={() => setLightboxIndex(i)}
+                      className={`w-full ${itemHeight} object-cover rounded-md cursor-pointer hover:opacity-90 transition`}
+                    />
+                  </Reveal>
                 ))}
               </div>
             );
@@ -744,29 +804,35 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                 const raw = String(cfg.prewedding.link).trim();
                 if (raw.includes("<iframe")) {
                   return (
-                    <div
-                      className="mx-4 mt-6 aspect-video bg-black/30 rounded-lg overflow-hidden shadow-lg [&_iframe]:w-full [&_iframe]:h-full"
-                      dangerouslySetInnerHTML={{ __html: raw }}
-                    />
+                    <Reveal variant="zoomIn" delay={120}>
+                      <div
+                        className="mx-4 mt-6 aspect-video bg-black/30 rounded-lg overflow-hidden shadow-lg [&_iframe]:w-full [&_iframe]:h-full"
+                        dangerouslySetInnerHTML={{ __html: raw }}
+                      />
+                    </Reveal>
                   );
                 }
                 const ytMatch = raw.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
                 const videoId = ytMatch ? ytMatch[1] : /^[a-zA-Z0-9_-]{11}$/.test(raw) ? raw : null;
                 const embedSrc = videoId ? `https://www.youtube.com/embed/${videoId}?rel=0` : raw;
                 return (
-                  <div className="mx-4 mt-6 aspect-video bg-black/30 rounded-lg overflow-hidden shadow-lg">
-                    <iframe
-                      src={embedSrc}
-                      title="Video Prewedding"
-                      className="w-full h-full border-0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
+                  <Reveal variant="zoomIn" delay={120}>
+                    <div className="mx-4 mt-6 aspect-video bg-black/30 rounded-lg overflow-hidden shadow-lg">
+                      <iframe
+                        src={embedSrc}
+                        title="Video Prewedding"
+                        className="w-full h-full border-0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  </Reveal>
                 );
               })()}
               {cfg.prewedding?.detail && (
-                <p className="font-lligat text-[12px] text-white/90 mt-3 px-6">{cfg.prewedding.detail}</p>
+                <Reveal variant="fadeInUp" delay={200}>
+                  <p className="font-lligat text-[12px] text-white/90 mt-3 px-6">{cfg.prewedding.detail}</p>
+                </Reveal>
               )}
             </div>
           </section>
@@ -775,34 +841,38 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         {/* ─── 9. LIVE STREAMING ─── */}
         {cfg.livestreaming?.enabled !== false && (
           <section className="bg-[#ECECEC] py-8 px-6 text-center">
-            <FaInstagram className="mx-auto text-[34px] text-[#383838]" />
-            <h3 className="font-combo text-[17px] text-[#5A5A5A] mt-2">Live Streaming</h3>
-            <p className="font-lligat text-[12px] text-[#383838] leading-tight mt-2">
-              Temui kami secara virtual untuk menyaksikan acara pernikahan kami yang akan disiarkan langsung melalui
-              akun instagram kami berikut ini.
-            </p>
-            <a href={cfg.livestreaming?.link || "#"} target="_blank" rel="noreferrer" className={`${btn} mt-3`}>
-              <FaVideo /> Live Streaming
-            </a>
-            <p className="font-lligat text-[12px] text-[#383838] mt-3 leading-tight">
-              {cfg.livestreaming?.detail}
-              {cfg.livestreaming?.time && (
-                <>
-                  <br />
-                  Pukul {cfg.livestreaming.time}
-                </>
-              )}
-            </p>
+            <Reveal variant="fadeInUp">
+              <FaInstagram className="mx-auto text-[34px] text-[#383838]" />
+              <h3 className="font-combo text-[17px] text-[#5A5A5A] mt-2">Live Streaming</h3>
+              <p className="font-lligat text-[12px] text-[#383838] leading-tight mt-2">
+                Temui kami secara virtual untuk menyaksikan acara pernikahan kami yang akan disiarkan langsung melalui
+                akun instagram kami berikut ini.
+              </p>
+              <a href={cfg.livestreaming?.link || "#"} target="_blank" rel="noreferrer" className={`${btn} mt-3`}>
+                <FaVideo /> Live Streaming
+              </a>
+              <p className="font-lligat text-[12px] text-[#383838] mt-3 leading-tight">
+                {cfg.livestreaming?.detail}
+                {cfg.livestreaming?.time && (
+                  <>
+                    <br />
+                    Pukul {cfg.livestreaming.time}
+                  </>
+                )}
+              </p>
+            </Reveal>
           </section>
         )}
 
         {/* ─── 10. WEDDING GIFT ─── */}
         <section id="section-weddingGift" className="bg-white pt-10 pb-10 px-6 text-center">
           <SectionTitle top="Wedding" bottom="Gift" />
-          <p className="font-lligat text-[13px] text-[#383838] leading-tight mt-4 max-w-[290px] mx-auto">
-            Doa Restu Anda merupakan karunia yang sangat berarti bagi kami. Dan jika memberi adalah ungkapan tanda
-            kasih Anda, Anda dapat memberi kado secara cashless.
-          </p>
+          <Reveal variant="fadeInUp" delay={120}>
+            <p className="font-lligat text-[13px] text-[#383838] leading-tight mt-4 max-w-[290px] mx-auto">
+              Doa Restu Anda merupakan karunia yang sangat berarti bagi kami. Dan jika memberi adalah ungkapan tanda
+              kasih Anda, Anda dapat memberi kado secara cashless.
+            </p>
+          </Reveal>
 
           <button onClick={() => setShowAmplop((s) => !s)} className={`${btn} mt-4`}>
             <FaEnvelope /> Amplop Online
@@ -1017,14 +1087,16 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
         {/* ─── 12. QUOTES (Ayat) ─── */}
         <section className="bg-[#ECECEC] py-8 px-6 text-center">
-          <h3 className="font-montserrat italic font-light text-[24px] tracking-wide text-[#383838]">QUOTES</h3>
-          <p className="font-montserrat italic text-[11px] text-[#383838] leading-snug mt-2 whitespace-pre-line">
-            {cfg.bibleVerseContent ||
-              '"Sebab itu seorang laki-laki akan meninggalkan ayahnya dan ibunya dan bersatu dengan isterinya, sehingga keduanya menjadi satu daging."'}
-          </p>
-          {cfg.bibleVerse && (
-            <p className="font-montserrat text-[10px] text-[#7D7D7D] mt-1.5">({cfg.bibleVerse})</p>
-          )}
+          <Reveal variant="fadeInUp">
+            <h3 className="font-montserrat italic font-light text-[24px] tracking-wide text-[#383838]">QUOTES</h3>
+            <p className="font-montserrat italic text-[11px] text-[#383838] leading-snug mt-2 whitespace-pre-line">
+              {cfg.bibleVerseContent ||
+                '"Sebab itu seorang laki-laki akan meninggalkan ayahnya dan ibunya dan bersatu dengan isterinya, sehingga keduanya menjadi satu daging."'}
+            </p>
+            {cfg.bibleVerse && (
+              <p className="font-montserrat text-[10px] text-[#7D7D7D] mt-1.5">({cfg.bibleVerse})</p>
+            )}
+          </Reveal>
         </section>
 
         {/* ─── 13. PENUTUP ─── */}
@@ -1034,18 +1106,22 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
             style={{ backgroundImage: `url(${closingImage})`, backgroundSize: "cover", backgroundPosition: "center top" }}
           >
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#ECECEC]" />
-            <p className="relative z-10 font-lligat text-[13px] text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-              Atas kehadiran dan doa restunya,
-              <br />
-              kami ucapkan terima kasih.
-            </p>
+            <Reveal variant="fadeInUp" className="relative z-10">
+              <p className="font-lligat text-[13px] text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                Atas kehadiran dan doa restunya,
+                <br />
+                kami ucapkan terima kasih.
+              </p>
+            </Reveal>
           </div>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <div className="w-14 h-px bg-[#928573]" />
-            <FaRing className="text-[#928573] text-lg" />
-            <div className="w-14 h-px bg-[#928573]" />
-          </div>
-          <p className="font-alex text-[38px] text-[#928573] mt-1">{couple}</p>
+          <Reveal variant="fadeInUp" delay={120}>
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <div className="w-14 h-px bg-[#928573]" />
+              <FaRing className="text-[#928573] text-lg" />
+              <div className="w-14 h-px bg-[#928573]" />
+            </div>
+            <p className="font-alex text-[38px] text-[#928573] mt-1">{couple}</p>
+          </Reveal>
         </section>
       </div>
 
