@@ -179,17 +179,12 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
   ];
   const prewedBg = cfg.slideImages?.slide7 || galleryImages[0] || "/dummy/gallery-1.jpg";
 
-  // Date helpers
+  // Date helpers (English format on frontend only)
   const eventDate = new Date(cfg.eventDate || "2026-12-13T09:00:00");
-  const dayName = eventDate.toLocaleDateString("id-ID", { weekday: "long" });
+  const dayName = eventDate.toLocaleDateString("en-US", { weekday: "long" });
   const dayNum = eventDate.getDate();
-  const monthYear = eventDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
-  const fullDate = eventDate.toLocaleDateString("id-ID", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const monthYear = eventDate.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const fullDate = `${dayName}, ${dayNum} ${monthYear}`;
 
   const toTitleCase = (str: string) =>
     (str || "")
