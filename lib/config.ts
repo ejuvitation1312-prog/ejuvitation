@@ -51,12 +51,10 @@ export const config = {
     thankyouDetail: process.env.NEXT_PUBLIC_THANKYOU_DETAIL || "Merupakan suatu kehormatan bagi kami atas kehadiran dan doa restu yang diberikan untuk hari bahagia kami.",
     craftedWithLove: process.env.NEXT_PUBLIC_CRAFTED_WITH_LOVE || "Crafted with Love for Elia & Juan",
     galleryImages: [
-      "https://web.menujuacara.id/wp-content/uploads/2025/09/tema-eksklusif-cb-s1-1-1.jpg",
-      "https://web.menujuacara.id/wp-content/uploads/2025/09/tema-eksklusif-cb-cover-1-1.jpg",
-      "https://web.menujuacara.id/wp-content/uploads/2025/09/tema-eksklusif-cb-s1-1-2.jpg",
-      "https://web.menujuacara.id/wp-content/uploads/2025/09/tema-eksklusif-cb-cover-1.jpg",
-      "https://web.menujuacara.id/wp-content/uploads/2025/09/tema-eksklusif-cb-g2-1-1.jpg",
-      "https://web.menujuacara.id/wp-content/uploads/2025/09/tema-eksklusif-cb-g2-1.jpg"
+      "/dummy/gallery-1.jpg",
+      "/dummy/gallery-2.jpg",
+      "/dummy/gallery-3.jpg",
+      "/dummy/gallery-4.jpg"
     ],
     weddingGift: {
         enabled: true,

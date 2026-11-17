@@ -88,6 +88,7 @@ interface Settings {
   };
   invitationTemplate: string;
   popupTemplate?: string;
+  giftAddress?: string;
   galleryImages?: string[];
   weddingGift?: {
     enabled: boolean;
@@ -2633,13 +2634,24 @@ export default function AdminDashboard() {
                             </div>
 
                             {/* SLIDES GENERATOR LOOP */}
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                            {[
+                              { num: 1, label: "1. Cover & Hero Utama" },
+                              { num: 2, label: "2. Foto Mempelai Wanita (Bride)" },
+                              { num: 3, label: "3. Foto Mempelai Pria (Groom)" },
+                              { num: 4, label: "4. Foto Love Story 1" },
+                              { num: 5, label: "5. Foto Love Story 2" },
+                              { num: 6, label: "6. Foto Love Story 3" },
+                              { num: 7, label: "7. Bg Video Prewedding" },
+                              { num: 8, label: "8. Background Cadangan" },
+                              { num: 9, label: "9. Foto Penutup (Closing)" },
+                              { num: 10, label: "10. Foto Share Link / OG" },
+                            ].map(({ num, label }) => {
                               const slideKey = `slide${num}`;
                               const slideVal = (settings.slideImages as any)[slideKey];
                               return (
                                 <div key={num} className="bg-neutral-950/40 border border-neutral-800/40 p-4 rounded-xl flex flex-col justify-between">
                                   <div>
-                                    <span className="text-xs font-semibold text-neutral-400 block mb-2 uppercase">Slide Background {num}</span>
+                                    <span className="text-xs font-semibold text-neutral-400 block mb-2 uppercase">{label}</span>
                                     <div className="w-full h-32 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden mb-3">
                                       {slideVal ? (
                                         <img src={slideVal} alt={`Slide ${num}`} className="w-full h-full object-cover" />
@@ -2946,6 +2958,25 @@ export default function AdminDashboard() {
                                     </div>
                                   ))
                                 )}
+                              </div>
+                            </div>
+
+                            {/* ALAMAT KIRIM KADO */}
+                            <div className="p-4 bg-neutral-950/40 border border-neutral-800/40 rounded-xl space-y-3">
+                              <h3 className="text-sm font-semibold uppercase text-neutral-300">
+                                3. Alamat Kirim Kado Fisik
+                              </h3>
+                              <div>
+                                <label className="block text-xs font-semibold text-neutral-400 mb-1.5 uppercase tracking-wide">
+                                  Alamat Lengkap Penerima Kado
+                                </label>
+                                <textarea
+                                  rows={2}
+                                  value={settings.giftAddress || ""}
+                                  onChange={(e) => handleUpdateField("giftAddress", e.target.value)}
+                                  placeholder="Contoh: Jl. RA Kartini No. 60, Kabupaten Gresik, Jawa Timur"
+                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white text-sm focus:outline-none focus:border-white transition-all"
+                                />
                               </div>
                             </div>
                           </div>

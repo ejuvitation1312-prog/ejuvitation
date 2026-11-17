@@ -38,17 +38,16 @@ interface Wish {
   createdAt?: string;
 }
 
-const ASSET = "https://web.menujuacara.id/wp-content/uploads/2025/09";
-const ORNAMENT = `${ASSET}/ornamen-bunga-cream-1.png`;
-const THE_BRIDE = `${ASSET}/tema-eksklusif-cb-bride.png`;
-const THE_GROOM = `${ASSET}/tema-eksklusif-cb-groom-1.png`;
-const BCA_LOGO = `${ASSET}/BCA-white-Logo-1-1-2-1.png`;
+const ORNAMENT = "/dummy/ornamen-bunga.png";
+const THE_BRIDE = "/dummy/the-bride.png";
+const THE_GROOM = "/dummy/the-groom.png";
+const BCA_LOGO = "/dummy/bca-white.png";
 
 const DEFAULT_GALLERY = [
-  `${ASSET}/tema-eksklusif-cb-s1-1-1.jpg`,
-  `${ASSET}/tema-eksklusif-cb-cover-1-1.jpg`,
-  `${ASSET}/tema-eksklusif-cb-cover-1.jpg`,
-  `${ASSET}/tema-eksklusif-cb-s1-1-2.jpg`,
+  "/dummy/gallery-1.jpg",
+  "/dummy/gallery-2.jpg",
+  "/dummy/gallery-3.jpg",
+  "/dummy/gallery-4.jpg",
 ];
 
 /* ── Reusable heading: ornament + serif word + script word (overlapping) ── */
@@ -105,21 +104,24 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
   const [formMessage, setFormMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const galleryImages: string[] =
-    cfg.galleryImages && cfg.galleryImages.length > 0 ? cfg.galleryImages : DEFAULT_GALLERY;
+  const rawGallery = Array.isArray(cfg.galleryImages) ? cfg.galleryImages.filter(Boolean) : [];
+  const galleryImages: string[] = rawGallery.length > 0 ? rawGallery : DEFAULT_GALLERY;
 
   const heroImage =
-    cfg.slideImages?.slide1 || cfg.coverImage || `${ASSET}/tema-eksklusif-cb-cover-1-1.jpg`;
+    cfg.slideImages?.slide1 || cfg.coverImage || "/dummy/cover-1.jpg";
   const leftHeroImage =
     cfg.slideImages?.sideImage || cfg.slideImages?.slide10 || heroImage;
-  const closingImage = cfg.slideImages?.slide9 || galleryImages[3] || `${ASSET}/tema-eksklusif-cb-cover-1.jpg`;
-  const bridePhoto = cfg.bridePhoto || `${ASSET}/tema-eksklusif-cb-wanita.jpg`;
-  const groomPhoto = cfg.groomPhoto || `${ASSET}/tema-eksklusif-cb-pria.jpg`;
+  const closingImage = cfg.slideImages?.slide9 || "/dummy/cover-2.jpg";
+  const bridePhoto = cfg.bridePhoto || cfg.slideImages?.slide2 || "/dummy/wanita.jpg";
+  const groomPhoto = cfg.groomPhoto || cfg.slideImages?.slide3 || "/dummy/pria.jpg";
   const storyImages = [
-    cfg.timeline_1_image || `${ASSET}/tema-eksklusif-cb-g2-1-1.jpg`,
-    cfg.timeline_2_image || `${ASSET}/tema-eksklusif-cb-g2-1-1.jpg`,
-    cfg.timeline_3_image || `${ASSET}/tema-eksklusif-cb-g2-1.jpg`,
+    cfg.timeline_1_image || cfg.slideImages?.slide4 || "/dummy/story-1.jpg",
+    cfg.timeline_2_image || cfg.slideImages?.slide5 || "/dummy/story-1.jpg",
+    cfg.timeline_3_image || cfg.slideImages?.slide6 || "/dummy/story-2.jpg",
+    cfg.timeline_4_image || "/dummy/story-1.jpg",
+    cfg.timeline_5_image || "/dummy/story-2.jpg",
   ];
+  const prewedBg = cfg.slideImages?.slide7 || galleryImages[0] || "/dummy/gallery-1.jpg";
 
   // Date helpers
   const eventDate = new Date(cfg.eventDate || "2026-12-13T09:00:00");
@@ -283,7 +285,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         <p className="font-lligat text-[12px] text-[#383838] font-semibold leading-tight">{place}</p>
         {detail && <p className="font-lligat text-[10px] text-[#7D7D7D] leading-tight mt-1 px-1">{detail}</p>}
         {maps && (
-          <a href={maps} target="_blank" rel="noreferrer" className={`${btn} mt-3 !text-[11px] !px-3 !py-1`}>
+          <a href={maps} target="_blank" rel="noreferrer" className={`${btn} mt-auto pt-1.5 !text-[11px] !px-3 !py-1`}>
             <FaMapMarkerAlt /> Lokasi Acara
           </a>
         )}
@@ -484,7 +486,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         {/* ─── 5. SAVE THE DATE ─── */}
         <section id="section-events" className="bg-[#E1D6C7] pt-8 pb-10 px-3">
           <SectionTitle top="SAVE" bottom="The Date" upper />
-          <div className="grid grid-cols-2 gap-3 mt-6 items-start">
+          <div className="grid grid-cols-2 gap-3 mt-6 items-stretch">
             {cfg.holyMatrimony?.enabled !== false && (
               <EventCard
                 title="Pemberkatan"
@@ -510,38 +512,40 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         </section>
 
         {/* ─── 6. LOVE STORY ─── */}
-        <section id="section-loveJourney" className="bg-white pt-10 pb-6 px-3">
+        <section id="section-loveJourney" className="bg-white pt-10 pb-8 px-6">
           <SectionTitle top="Love" bottom="Story" />
-          <div className="grid grid-cols-3 gap-2 mt-5">
-            {[1, 2, 3].map((n) => (
-              <div key={n} className="flex flex-col items-center text-center">
-                <img
-                  src={storyImages[n - 1]}
-                  alt=""
-                  className="w-full h-[70px] object-cover rounded-tl-[28px] rounded-br-[28px] rounded-tr-md rounded-bl-md"
-                />
-                <h4 className="font-alex text-[20px] text-[#928573] mt-1 leading-tight">
-                  {cfg[`timeline_${n}`]}
-                </h4>
-                <p className="font-lligat text-[11px] text-[#383838] leading-tight mt-1">
-                  {cfg[`timeline_${n}_content`]}
-                </p>
-              </div>
-            ))}
+          <div className="flex flex-col gap-7 mt-6">
+            {Array.from({ length: Math.min(cfg.timelineCount || 3, 5) }, (_, idx) => idx + 1)
+              .filter((n) => cfg[`timeline_${n}`] || cfg[`timeline_${n}_content`])
+              .map((n) => (
+                <div key={n} className="flex flex-col items-center text-center">
+                  <img
+                    src={storyImages[n - 1]}
+                    alt={cfg[`timeline_${n}`] || `Story ${n}`}
+                    className="w-[220px] h-[145px] object-cover rounded-tl-[55px] rounded-tr-[55px] rounded-bl-[55px] rounded-br-none shadow-sm"
+                  />
+                  <h4 className="font-alex text-[28px] text-[#928573] mt-2.5 leading-tight">
+                    {cfg[`timeline_${n}`]}
+                  </h4>
+                  <p className="font-lligat text-[13px] text-[#383838] leading-snug mt-1 max-w-[260px]">
+                    {cfg[`timeline_${n}_content`]}
+                  </p>
+                </div>
+              ))}
           </div>
         </section>
 
         {/* ─── 7. MOMENT GALLERY ─── */}
-        <section id="section-media" className="bg-white pt-8 pb-10 px-1">
+        <section id="section-media" className="bg-white pt-8 pb-10 px-2">
           <SectionTitle top="Moment" bottom="Gallery" />
-          <div className="grid grid-cols-2 gap-1 mt-4">
+          <div className="grid grid-cols-2 gap-2 mt-5">
             {galleryImages.map((src, i) => (
               <img
                 key={i}
                 src={src}
                 alt="Gallery"
                 onClick={() => setLightboxSrc(src)}
-                className="w-full h-[250px] object-cover rounded-md cursor-pointer hover:opacity-90 transition"
+                className="w-full h-[240px] object-cover rounded-md cursor-pointer hover:opacity-90 transition"
               />
             ))}
           </div>
@@ -550,7 +554,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         {/* ─── 8. VIDEO PREWEDDING ─── */}
         <section
           className="relative py-12 text-center"
-          style={{ backgroundImage: `url(${galleryImages[0]})`, backgroundSize: "cover", backgroundPosition: "center" }}
+          style={{ backgroundImage: `url(${prewedBg})`, backgroundSize: "cover", backgroundPosition: "center" }}
         >
           <div className="absolute inset-0 bg-[#928573]/75" />
           <div className="relative z-10">
