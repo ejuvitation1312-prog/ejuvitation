@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Ovo, Ms_Madi, Great_Vibes, Cormorant_Garamond, Montserrat } from "next/font/google";
+import { Ovo, Ms_Madi, Great_Vibes, Cormorant_Garamond, Montserrat, Playfair_Display, Alex_Brush, Port_Lligat_Sans, Combo } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 import { config } from "@/lib/config";
@@ -54,6 +54,31 @@ const montserrat = Montserrat({
   weight: ["300", "400", "500", "600"],
   subsets: ["latin"],
   variable: "--font-montserrat",
+});
+
+const playfair = Playfair_Display({
+  weight: ["400", "500", "600"],
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  variable: "--font-playfair",
+});
+
+const alexBrush = Alex_Brush({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-alex",
+});
+
+const lligat = Port_Lligat_Sans({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-lligat",
+});
+
+const combo = Combo({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-combo",
 });
 
 export async function generateMetadata() {
@@ -115,7 +140,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`bg-[#2b1f17] text-[#3d2b1f] ${ovo.variable} ${thesignature.variable} ${wonder.variable} ${legan.variable} ${dancingScript.variable} ${greatVibes.variable} ${cormorant.variable} ${montserrat.variable} font-montserrat antialiased`}
+        className={`bg-[#2b1f17] text-[#3d2b1f] ${ovo.variable} ${thesignature.variable} ${wonder.variable} ${legan.variable} ${dancingScript.variable} ${greatVibes.variable} ${cormorant.variable} ${montserrat.variable} ${playfair.variable} ${alexBrush.variable} ${lligat.variable} ${combo.variable} font-montserrat antialiased`}
       >
         {children}
       </body>

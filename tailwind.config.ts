@@ -17,6 +17,11 @@ const config: Config = {
         "great-vibes": ["var(--font-great-vibes)", "cursive"],
         cormorant: ["var(--font-cormorant)", "serif"],
         montserrat: ["var(--font-montserrat)", "sans-serif"],
+        playfair: ["var(--font-playfair)", "serif"],
+        alex: ["var(--font-alex)", "cursive"],
+        madi: ["var(--font-dancing)", "cursive"],
+        lligat: ["var(--font-lligat)", "sans-serif"],
+        combo: ["var(--font-combo)", "sans-serif"],
       },
       colors: {
         cream: "#f5f0e8",
@@ -26,8 +31,17 @@ const config: Config = {
         brown: "#6b4f35",
         "brown-dark": "#4a3425",
         "text-wedding": "#3d2b1f",
+        taupe: "#928573",
+        "taupe-light": "#9E9180",
+        beige: "#E1D6C7",
+        mocha: "#B3A99C",
+        smoke: "#ECECEC",
       },
       keyframes: {
+        marquee: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
         upDown: {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-10px)" },
@@ -43,6 +57,7 @@ const config: Config = {
       },
       animation: {
         upDown: "upDown 1s ease-in-out infinite",
+        marquee: "marquee 25s linear infinite",
         fadeIn: "fadeIn 0.5s ease-out forwards",
         slideInRight: "slideInRight 0.35s ease-out",
       },
