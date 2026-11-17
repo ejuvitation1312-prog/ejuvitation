@@ -1676,18 +1676,6 @@ export default function AdminDashboard() {
                       </button>
                       <button
                         onClick={() => {
-                          handleSelectSection("music");
-                          setIsEditNavOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "music"
-                          ? "bg-white text-black font-semibold shadow-md"
-                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
-                          }`}
-                      >
-                        Musik / Ganti Lagu
-                      </button>
-                      <button
-                        onClick={() => {
                           handleSelectSection("media");
                           setIsEditNavOpen(false);
                         }}
@@ -1749,6 +1737,19 @@ export default function AdminDashboard() {
                           }`}
                       >
                         Template Tulisan Popup
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleSelectSection("music");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "music"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-500 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Musik / Ganti Lagu
                       </button>
                     </div>
                   </div>
@@ -1821,15 +1822,6 @@ export default function AdminDashboard() {
                     Dresscode
                   </button>
                   <button
-                    onClick={() => handleSelectSection("music")}
-                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "music"
-                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
-                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
-                      }`}
-                  >
-                    Musik / Ganti Lagu
-                  </button>
-                  <button
                     onClick={() => handleSelectSection("media")}
                     className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "media"
                       ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
@@ -1877,6 +1869,16 @@ export default function AdminDashboard() {
                       }`}
                   >
                     Template Tulisan Popup
+                  </button>
+
+                  <button
+                    onClick={() => handleSelectSection("music")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "music"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-500 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Musik / Ganti Lagu
                   </button>
                 </div>
 
