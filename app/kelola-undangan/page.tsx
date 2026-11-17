@@ -2504,9 +2504,9 @@ export default function AdminDashboard() {
                                     handleUpdateField("livestreaming.time", `${h}.${m}`);
                                   }}
                                   style={{ colorScheme: "dark" }}
-                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/20 transition-all text-sm cursor-pointer appearance-none"
+                                  className="w-full bg-neutral-950 border border-neutral-800 rounded-xl pl-4 pr-16 py-3 text-white focus:outline-none focus:border-white/60 focus:ring-1 focus:ring-white/20 transition-all text-sm cursor-pointer appearance-none"
                                 />
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 pointer-events-none text-xs font-mono">
+                                <div className="absolute right-10 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none text-xs font-mono">
                                   {(() => {
                                     const t = settings.livestreaming.time;
                                     const m = t?.match(/(\d{1,2})[\.:]?(\d{2})/);
