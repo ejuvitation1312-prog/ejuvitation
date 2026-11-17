@@ -159,9 +159,9 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"settings" | "guests" | "rsvp" | "wishes">("settings");
 
   // Settings tab sub-sections
-  const [settingsSection, setSettingsSection] = useState<"general" | "groomBride" | "loveJourney" | "events" | "livestreaming" | "prewedding" | "dresscode" | "media" | "weddingGift" | "penutup" | "template" | "popupTemplate">("general");
+  const [settingsSection, setSettingsSection] = useState<"general" | "groomBride" | "loveJourney" | "events" | "livestreaming" | "prewedding" | "dresscode" | "music" | "media" | "weddingGift" | "penutup" | "template" | "popupTemplate">("general");
 
-  const handleSelectSection = useCallback((sec: "general" | "groomBride" | "loveJourney" | "events" | "livestreaming" | "prewedding" | "dresscode" | "media" | "weddingGift" | "penutup" | "template" | "popupTemplate") => {
+  const handleSelectSection = useCallback((sec: "general" | "groomBride" | "loveJourney" | "events" | "livestreaming" | "prewedding" | "dresscode" | "music" | "media" | "weddingGift" | "penutup" | "template" | "popupTemplate") => {
     setSettingsSection(sec);
     const iframe = document.getElementById("preview-iframe") as HTMLIFrameElement;
     if (iframe && iframe.contentWindow) {
@@ -1549,6 +1549,7 @@ export default function AdminDashboard() {
                       {settingsSection === "livestreaming" && "Live Streaming"}
                       {settingsSection === "prewedding" && "Video Prewedding"}
                       {settingsSection === "dresscode" && "Dresscode"}
+                      {settingsSection === "music" && "Musik / Ganti Lagu"}
                       {settingsSection === "media" && "Lagu & Foto (Media)"}
                       {settingsSection === "weddingGift" && "Hadiah / Amplop Digital"}
                       {settingsSection === "penutup" && "Penutup & Ucapan Terima Kasih"}
@@ -1672,6 +1673,18 @@ export default function AdminDashboard() {
                           }`}
                       >
                         Dresscode
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleSelectSection("music");
+                          setIsEditNavOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all ${settingsSection === "music"
+                          ? "bg-white text-black font-semibold shadow-md"
+                          : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                          }`}
+                      >
+                        Musik / Ganti Lagu
                       </button>
                       <button
                         onClick={() => {
@@ -1806,6 +1819,15 @@ export default function AdminDashboard() {
                       }`}
                   >
                     Dresscode
+                  </button>
+                  <button
+                    onClick={() => handleSelectSection("music")}
+                    className={`w-full text-left px-4 py-2.5 rounded-lg text-sm transition-all ${settingsSection === "music"
+                      ? "bg-neutral-800 text-white font-medium border-l-2 border-white"
+                      : "text-neutral-400 hover:text-white hover:bg-neutral-900/60"
+                      }`}
+                  >
+                    Musik / Ganti Lagu
                   </button>
                   <button
                     onClick={() => handleSelectSection("media")}
@@ -2575,6 +2597,63 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* SECTION: MUSIK / GANTI LAGU */}
+                    {settingsSection === "music" && (
+                      <div className="space-y-6">
+                        <h2 className="text-xl font-ovo text-white border-b border-neutral-800 pb-3 uppercase tracking-wider">
+                          Musik Latar (Ganti Lagu)
+                        </h2>
+                        <div className="bg-neutral-950/40 border border-neutral-800/40 p-5 rounded-xl space-y-4">
+                          <div className="flex items-center gap-x-2 text-sm font-semibold uppercase text-neutral-300">
+                            <FaMusic /> <span>Audio Undangan</span>
+                          </div>
+                          <p className="text-xs text-neutral-400">
+                            Upload file lagu (.mp3 / .m4a / .wav) atau masukkan URL audio. Lagu otomatis diputar saat tamu membuka undangan.
+                          </p>
+                          {settings.musicPath && (
+                            <div className="bg-neutral-900 border border-neutral-800 rounded-lg p-3 space-y-2">
+                              <p className="text-[11px] font-mono text-neutral-300 break-all">
+                                File Aktif: {settings.musicPath}
+                              </p>
+                              <audio controls src={settings.musicPath} className="w-full h-9" />
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-center gap-3">
+                            <input
+                              type="file"
+                              accept="audio/*"
+                              id="music-menu-uploader"
+                              onChange={(e) => handleFileUpload(e, "musicPath")}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor="music-menu-uploader"
+                              className="bg-white text-black hover:bg-neutral-200 transition font-bold px-4 py-2 rounded-lg text-xs cursor-pointer inline-flex items-center gap-2 shadow-md"
+                            >
+                              <FaMusic /> <span>Upload / Ganti Lagu Baru</span>
+                            </label>
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateField("musicPath", "/music/wedding_song.mp3")}
+                              className="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition px-3 py-2 rounded-lg text-xs"
+                            >
+                              Reset ke Lagu Bawaan
+                            </button>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-neutral-400 mb-1 uppercase">Atau URL / Path Lagu</label>
+                            <input
+                              type="text"
+                              value={settings.musicPath || ""}
+                              onChange={(e) => handleUpdateField("musicPath", e.target.value)}
+                              placeholder="/music/wedding_song.mp3 atau https://..."
+                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-white"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
 
