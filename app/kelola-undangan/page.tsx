@@ -72,6 +72,7 @@ interface Settings {
   thankyou: string;
   thankyouDetail: string;
   closingBoxPosition?: "top" | "bottom";
+  sideBannerPosition?: "bottom" | "top" | "left" | "right" | "center";
   craftedWithLove?: string;
   musicPath: string;
   slideImages: {
@@ -1919,6 +1920,37 @@ export default function AdminDashboard() {
                               className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-white transition-all text-sm"
                             />
                           </div>
+
+                          <div className="pt-2 border-t border-neutral-800/60">
+                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">
+                              Posisi Teks &amp; Countdown di Side Banner (Desktop)
+                            </label>
+                            <div className="grid grid-cols-5 gap-2">
+                              {[
+                                { val: "bottom", label: "Bawah" },
+                                { val: "top", label: "Atas" },
+                                { val: "left", label: "Kiri" },
+                                { val: "right", label: "Kanan" },
+                                { val: "center", label: "Tengah" },
+                              ].map((opt) => {
+                                const active = (settings.sideBannerPosition || "bottom") === opt.val;
+                                return (
+                                  <button
+                                    key={opt.val}
+                                    type="button"
+                                    onClick={() => handleUpdateField("sideBannerPosition", opt.val)}
+                                    className={`py-2 px-2 rounded-lg text-xs font-semibold border transition ${
+                                      active
+                                        ? "bg-white text-black border-white shadow"
+                                        : "bg-neutral-950 text-neutral-400 border-neutral-800 hover:text-white hover:border-neutral-600"
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -2703,7 +2735,7 @@ export default function AdminDashboard() {
                             {/* SIDE IMAGE */}
                             <div className="bg-neutral-950/40 border border-neutral-800/40 p-4 rounded-xl flex flex-col justify-between">
                               <div>
-                                <span className="text-xs font-semibold text-neutral-400 block mb-2 uppercase">Desktop Side Banner</span>
+                                <span className="text-xs font-semibold text-neutral-400 block mb-2 uppercase">Desktop Side Banner &amp; Cover Landscape</span>
                                 <div className="w-full h-32 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden mb-3">
                                   {settings.slideImages.sideImage ? (
                                     <img src={settings.slideImages.sideImage} alt="side" className="w-full h-full object-cover" />
@@ -2729,7 +2761,7 @@ export default function AdminDashboard() {
 
                             {/* SLIDES GENERATOR LOOP */}
                             {[
-                              { num: 1, label: "1. Cover & Hero Utama" },
+                              { num: 1, label: "1. Cover Mobile & Hero Utama" },
                               { num: 2, label: "2. Foto Mempelai Wanita (Bride)" },
                               { num: 3, label: "3. Foto Mempelai Pria (Groom)" },
                               { num: 4, label: "4. Foto Love Story 1" },

@@ -79,6 +79,7 @@ function getDefaultSettings() {
     thankyou: "Terima Kasih Atas Doa & Restu Anda",
     thankyouDetail: "Merupakan suatu kehormatan bagi kami atas kehadiran dan doa restu yang diberikan untuk hari bahagia kami.",
     closingBoxPosition: "bottom",
+    sideBannerPosition: "bottom",
     craftedWithLove: "Crafted with Love for Elia & Juan",
     musicPath: "/music/wedding_song.mp3",
     galleryImages: [

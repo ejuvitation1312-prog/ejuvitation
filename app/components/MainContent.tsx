@@ -317,10 +317,16 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
       {/* ══════════ COVER (BEFORE OPEN — FULLSCREEN BOTH DESKTOP & MOBILE) ══════════ */}
       {!isOpen && (
-        <div
-          className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-16 text-center text-white px-6 select-none overflow-hidden"
-          style={{ backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
-        >
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-16 text-center text-white px-6 select-none overflow-hidden">
+          {/* Background: Side Banner on desktop/landscape, Hero Cover on mobile */}
+          <div
+            className="absolute inset-0 bg-cover bg-center md:hidden"
+            style={{ backgroundImage: `url(${heroImage})` }}
+          />
+          <div
+            className="absolute inset-0 bg-cover bg-center hidden md:block"
+            style={{ backgroundImage: `url(${leftHeroImage})` }}
+          />
           <div className="absolute inset-0 bg-black/35" />
           {/* Subtle floating sparkles */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -381,29 +387,49 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
       )}
 
       {/* ══════════ LEFT PANE (DESKTOP / LANDSCAPE) ══════════ */}
-      <div
-        className="hidden md:flex flex-1 h-screen relative overflow-hidden text-white select-none flex-col items-center justify-end pb-16"
-        style={{ backgroundImage: `url(${leftHeroImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-black/30" />
-        <div className="relative z-10 text-center px-8 max-w-2xl">
-          <p className="font-playfair text-sm tracking-[0.3em] uppercase text-white/90">The Wedding Of</p>
-          <h1 className="font-alex text-7xl lg:text-8xl leading-tight drop-shadow-lg my-2">{couple}</h1>
-          <p className="font-playfair text-base lg:text-lg text-white/90 capitalize">{fullDate}</p>
-          <p className="font-playfair italic text-sm text-white/80 mt-5 leading-relaxed max-w-lg mx-auto">
-            &ldquo;Karena itu, apa yang telah dipersatukan Allah, tidak boleh diceraikan manusia.&rdquo;
-          </p>
-          <p className="font-lligat text-xs tracking-widest text-white/70 mt-1">Markus 10:9</p>
-          <div className="flex justify-center gap-3 mt-8">
-            {countdownBoxes.map((b) => (
-              <div key={b.l} className="bg-[#928573]/80 rounded-md w-[72px] py-2.5 text-center backdrop-blur-sm">
-                <span className="block text-2xl font-semibold leading-none">{b.v}</span>
-                <span className="block text-[11px] mt-1">{b.l}</span>
+      {(() => {
+        const pos = cfg.sideBannerPosition || "bottom";
+        const containerAlign =
+          pos === "top"
+            ? "items-center justify-start pt-16 text-center"
+            : pos === "left"
+            ? "items-start justify-center pl-14 text-left"
+            : pos === "right"
+            ? "items-end justify-center pr-14 text-right"
+            : pos === "center"
+            ? "items-center justify-center text-center"
+            : "items-center justify-end pb-16 text-center";
+        const countdownAlign =
+          pos === "left" ? "justify-start" : pos === "right" ? "justify-end" : "justify-center";
+        const verseMargin =
+          pos === "left" ? "mr-auto" : pos === "right" ? "ml-auto" : "mx-auto";
+
+        return (
+          <div
+            className={`hidden md:flex flex-1 h-screen relative overflow-hidden text-white select-none flex-col ${containerAlign}`}
+            style={{ backgroundImage: `url(${leftHeroImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-black/30" />
+            <div className="relative z-10 px-8 max-w-2xl">
+              <p className="font-playfair text-sm tracking-[0.3em] uppercase text-white/90">The Wedding Of</p>
+              <h1 className="font-alex text-7xl lg:text-8xl leading-tight drop-shadow-lg my-2">{couple}</h1>
+              <p className="font-playfair text-base lg:text-lg text-white/90 capitalize">{fullDate}</p>
+              <p className={`font-playfair italic text-sm text-white/80 mt-5 leading-relaxed max-w-lg ${verseMargin}`}>
+                &ldquo;Karena itu, apa yang telah dipersatukan Allah, tidak boleh diceraikan manusia.&rdquo;
+              </p>
+              <p className="font-lligat text-xs tracking-widest text-white/70 mt-1">Markus 10:9</p>
+              <div className={`flex ${countdownAlign} gap-3 mt-8`}>
+                {countdownBoxes.map((b) => (
+                  <div key={b.l} className="bg-[#928573]/80 rounded-md w-[72px] py-2.5 text-center backdrop-blur-sm">
+                    <span className="block text-2xl font-semibold leading-none">{b.v}</span>
+                    <span className="block text-[11px] mt-1">{b.l}</span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ══════════ RIGHT PANE: INVITATION ══════════ */}
       <div
