@@ -1,5 +1,5 @@
 {
-  "coupleNames": "ELIA & JUAN",
+  "coupleNames": "juan & elia",
   "eventDate": "2026-12-13T09:00:00",
   "groom": "Adriel Juan Ardika",
   "groomNickName": "Juan",
@@ -47,9 +47,9 @@
     "detail": "Instagram: @kristiawati_elia"
   },
   "prewedding": {
-    "enabled": false,
-    "link": "",
-    "detail": ""
+    "enabled": true,
+    "link": "UNPkHTSZH2Q",
+    "detail": "our moments"
   },
   "rsvp": {
     "enabled": true,
@@ -81,7 +81,6 @@
   },
   "invitationTemplate": "Shalom / Salam Sejahtera {nama},\n\nDengan penuh rasa syukur atas berkat dan kasih karunia Tuhan, kami bermaksud mengundang Bapak/Ibu/Saudara/i untuk menghadiri ibadah Pemberkatan dan Resepsi Pernikahan kami:\n\n🕊️ Elia Kristiawati & Adriel Juan Ardika 🕊️\n\n📅 Hari/Tgl: Minggu, 13 Desember 2026\n📍 Pemberkatan: GMAHK Gresik (Pukul 09.00 WIB)\n📍 Resepsi: Gedung Dakwah Muhammadiyah Gresik (Pukul 13.00 WIB)\n\nUntuk melihat informasi lengkap acara, peta lokasi, dan konfirmasi kehadiran, silakan kunjungi link undangan digital kami:\n👉 {link}\n\nTerima kasih banyak atas doa dan perhatiannya. Tuhan Yesus memberkati! 🙏✨",
   "popupTemplate": "Hai {nama}! Terima kasih telah membuka undangan kami. Mohon kesediaannya untuk mengisi ucapan doa dan konfirmasi kehadiran pada form RSVP di bawah ya!",
-  "giftAddress": "Kediaman Mempelai Wanita — Kabupaten Gresik, Jawa Timur",
   "weddingGift": {
     "enabled": true,
     "qrisImage": "",
@@ -104,5 +103,6 @@
     "title": "Dresscode",
     "text": "",
     "image": ""
-  }
+  },
+  "giftAddress": "Kediaman Mempelai Wanita — Kabupaten Gresik, Jawa Timur"
 }
