@@ -926,10 +926,10 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                   placeholder="Nama"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  readOnly={Boolean(name && name !== "Tamu Undangan")}
+                  readOnly={Boolean(name && name !== "Tamu Undangan") || isEditingWish}
                   required
                   className={`w-full px-3 py-2 rounded border border-[#ccc] text-[12px] outline-none focus:border-[#928573] ${
-                    name && name !== "Tamu Undangan" ? "bg-[#e7e7e7] text-[#5A5A5A]" : "bg-white"
+                    (name && name !== "Tamu Undangan") || isEditingWish ? "bg-[#e7e7e7] text-[#5A5A5A]" : "bg-white"
                   }`}
                 />
                 <select

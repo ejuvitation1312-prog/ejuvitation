@@ -576,7 +576,7 @@ export async function findWishByName(name: string) {
     const { data, error } = await supabase
       .from("wishes")
       .select("*")
-      .eq("name", name)
+      .ilike("name", name)
       .order("updated_at", { ascending: false })
       .limit(1);
 
@@ -618,7 +618,7 @@ export async function createDynamicWish(rawWishData: any) {
     ...rawWishData,
     attendance,
     guests:
-      attendance === "Tidak Hadir"
+      attendance === "Tidak Hadir" || attendance === "tidak_hadir"
         ? 0
         : Number.isFinite(parsedGuests) && parsedGuests > 0
         ? parsedGuests
@@ -626,12 +626,12 @@ export async function createDynamicWish(rawWishData: any) {
   };
 
   try {
-    // Check if wish from same person already exists (upsert logic)
+    // Check if wish from same person already exists (case-insensitive upsert logic)
     // Use .limit(1) instead of .single() to avoid crash when duplicates exist
     const { data: existingList } = await supabase
       .from("wishes")
       .select("*")
-      .eq("name", wishData.name)
+      .ilike("name", wishData.name)
       .limit(1);
 
     const existing = existingList?.[0] ?? null;
