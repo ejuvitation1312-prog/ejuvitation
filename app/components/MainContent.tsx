@@ -343,10 +343,10 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         ref={scrollRef}
         className="w-full md:w-[430px] md:min-w-[430px] h-screen overflow-y-auto overflow-x-hidden scroll-smooth relative bg-white md:shadow-[-8px_0_30px_rgba(0,0,0,0.25)]"
       >
-        {/* ─── COVER (BEFORE OPEN) ─── */}
+        {/* ─── COVER (BEFORE OPEN — MOBILE ONLY) ─── */}
         {!isOpen && (
           <div
-            className="fixed md:absolute inset-0 z-[60] flex flex-col items-center justify-between text-center text-white py-16 px-6"
+            className="fixed inset-0 z-[60] flex md:hidden flex-col items-center justify-between text-center text-white py-16 px-6"
             style={{ backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
           >
             <div className="absolute inset-0 bg-black/35" />
@@ -783,8 +783,11 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
       </div>
 
       {/* ══════════ BOTTOM NAV (like reference) ══════════ */}
-      {isOpen && (
-        <nav className="fixed bottom-0 right-0 left-0 md:left-auto md:w-[430px] z-50 flex justify-center pointer-events-none">
+      <nav
+        className={`fixed bottom-0 right-0 left-0 md:left-auto md:w-[430px] z-50 justify-center pointer-events-none ${
+          isOpen ? "flex" : "hidden md:flex"
+        }`}
+      >
           <div className="pointer-events-auto bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.15)] rounded-t-md flex gap-4 px-4 py-1.5">
             {[
               { icon: <FaHome />, id: "section-home", t: "Home" },
@@ -811,7 +814,6 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
             </button>
           </div>
         </nav>
-      )}
     </div>
   );
 }
