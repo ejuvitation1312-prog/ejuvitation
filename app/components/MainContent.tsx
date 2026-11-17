@@ -627,19 +627,26 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         )}
 
         {/* ─── 7. MOMENT GALLERY ─── */}
-        <section id="section-media" className="bg-white pt-8 pb-10 px-2">
+        <section id="section-media" className="bg-white min-h-screen flex flex-col justify-center pt-6 pb-16 px-2">
           <SectionTitle top="Moment" bottom="Gallery" />
-          <div className="grid grid-cols-2 gap-2 mt-5">
-            {galleryImages.map((src, i) => (
-              <img
-                key={i}
-                src={src}
-                alt="Gallery"
-                onClick={() => setLightboxSrc(src)}
-                className="w-full h-[240px] object-cover rounded-md cursor-pointer hover:opacity-90 transition"
-              />
-            ))}
-          </div>
+          {(() => {
+            const count = galleryImages.length;
+            const gridCols = count > 6 ? "grid-cols-3 gap-1.5" : count > 4 ? "grid-cols-2 gap-1.5" : "grid-cols-2 gap-2";
+            const itemHeight = count > 4 ? "h-[145px]" : "h-[210px]";
+            return (
+              <div className={`grid ${gridCols} mt-4`}>
+                {galleryImages.map((src, i) => (
+                  <img
+                    key={i}
+                    src={src}
+                    alt={`Gallery ${i + 1}`}
+                    onClick={() => setLightboxSrc(src)}
+                    className={`w-full ${itemHeight} object-cover rounded-md cursor-pointer hover:opacity-90 transition`}
+                  />
+                ))}
+              </div>
+            );
+          })()}
         </section>
 
         {/* ─── 8. VIDEO PREWEDDING ─── */}
