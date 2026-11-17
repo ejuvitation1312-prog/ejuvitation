@@ -39,6 +39,7 @@ interface Settings {
   timeline_5?: string;
   timeline_5_content?: string;
   timelineCount?: number;
+  loveJourneyEnabled?: boolean;
   holyMatrimony: {
     enabled: boolean;
     time: string;
@@ -1901,23 +1902,35 @@ export default function AdminDashboard() {
                     {/* SECTION: LOVE JOURNEY (KISAH CINTA) */}
                     {settingsSection === "loveJourney" && (
                       <div className="space-y-6">
-                        <div className="flex justify-between items-center border-b border-neutral-800 pb-3">
+                        <div className="flex flex-wrap justify-between items-center gap-3 border-b border-neutral-800 pb-3">
                           <h2 className="text-xl font-ovo text-white uppercase tracking-wider">Timeline Kisah Cinta</h2>
 
-                          {/* Add Button (limited to 5) */}
-                          {(!settings.timelineCount || settings.timelineCount < 5) && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newCount = Math.min((settings.timelineCount || 3) + 1, 5);
-                                handleUpdateField("timelineCount", newCount);
-                              }}
-                              className="flex items-center gap-x-1.5 bg-white text-black hover:bg-neutral-200 transition font-bold px-3 py-1.5 rounded-lg text-xs shadow-md"
-                            >
-                              <FaPlus />
-                              <span>Tambah Kisah</span>
-                            </button>
-                          )}
+                          <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-x-2 cursor-pointer text-xs">
+                              <input
+                                type="checkbox"
+                                checked={settings.loveJourneyEnabled ?? true}
+                                onChange={(e) => handleUpdateField("loveJourneyEnabled", e.target.checked)}
+                                className="rounded bg-neutral-950 border-neutral-800 text-white focus:ring-0 focus:ring-offset-0"
+                              />
+                              <span>Aktifkan Section</span>
+                            </label>
+
+                            {/* Add Button (limited to 5) */}
+                            {(!settings.timelineCount || settings.timelineCount < 5) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newCount = Math.min((settings.timelineCount || 3) + 1, 5);
+                                  handleUpdateField("timelineCount", newCount);
+                                }}
+                                className="flex items-center gap-x-1.5 bg-white text-black hover:bg-neutral-200 transition font-bold px-3 py-1.5 rounded-lg text-xs shadow-md"
+                              >
+                                <FaPlus />
+                                <span>Tambah Kisah</span>
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         <div className="space-y-6">

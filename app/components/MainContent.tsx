@@ -514,28 +514,30 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         </section>
 
         {/* ─── 6. LOVE STORY ─── */}
-        <section id="section-loveJourney" className="bg-white pt-10 pb-8 px-6">
-          <SectionTitle top="Love" bottom="Story" />
-          <div className="flex flex-col gap-7 mt-6">
-            {Array.from({ length: Math.min(cfg.timelineCount || 3, 5) }, (_, idx) => idx + 1)
-              .filter((n) => cfg[`timeline_${n}`] || cfg[`timeline_${n}_content`])
-              .map((n) => (
-                <div key={n} className="flex flex-col items-center text-center">
-                  <img
-                    src={storyImages[n - 1]}
-                    alt={cfg[`timeline_${n}`] || `Story ${n}`}
-                    className="w-[220px] h-[145px] object-cover rounded-tl-[55px] rounded-tr-[55px] rounded-bl-[55px] rounded-br-none shadow-sm"
-                  />
-                  <h4 className="font-alex text-[28px] text-[#928573] mt-2.5 leading-tight">
-                    {cfg[`timeline_${n}`]}
-                  </h4>
-                  <p className="font-lligat text-[13px] text-[#383838] leading-snug mt-1 max-w-[260px]">
-                    {cfg[`timeline_${n}_content`]}
-                  </p>
-                </div>
-              ))}
-          </div>
-        </section>
+        {cfg.loveJourneyEnabled !== false && (
+          <section id="section-loveJourney" className="bg-white pt-10 pb-8 px-6">
+            <SectionTitle top="Love" bottom="Story" />
+            <div className="flex flex-col gap-7 mt-6">
+              {Array.from({ length: Math.min(cfg.timelineCount || 3, 5) }, (_, idx) => idx + 1)
+                .filter((n) => cfg[`timeline_${n}`] || cfg[`timeline_${n}_content`])
+                .map((n) => (
+                  <div key={n} className="flex flex-col items-center text-center">
+                    <img
+                      src={storyImages[n - 1]}
+                      alt={cfg[`timeline_${n}`] || `Story ${n}`}
+                      className="w-[220px] h-[145px] object-cover rounded-tl-[55px] rounded-tr-[55px] rounded-bl-[55px] rounded-br-none shadow-sm"
+                    />
+                    <h4 className="font-alex text-[28px] text-[#928573] mt-2.5 leading-tight">
+                      {cfg[`timeline_${n}`]}
+                    </h4>
+                    <p className="font-lligat text-[13px] text-[#383838] leading-snug mt-1 max-w-[260px]">
+                      {cfg[`timeline_${n}_content`]}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </section>
+        )}
 
         {/* ─── 7. MOMENT GALLERY ─── */}
         <section id="section-media" className="bg-white pt-8 pb-10 px-2">

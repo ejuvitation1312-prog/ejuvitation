@@ -46,6 +46,7 @@ function getDefaultSettings() {
     timeline_5: "",
     timeline_5_content: "",
     timelineCount: 3,
+    loveJourneyEnabled: true,
     holyMatrimony: {
       enabled: true,
       time: "Pukul 09.00 WIB",
