@@ -313,6 +313,28 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         </div>
       )}
 
+      {/* ══════════ COVER (BEFORE OPEN — FULLSCREEN BOTH DESKTOP & MOBILE) ══════════ */}
+      {!isOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-16 text-center text-white px-6 select-none"
+          style={{ backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
+        >
+          <div className="absolute inset-0 bg-black/35" />
+          <div className="relative z-10">
+            <p className="font-playfair text-[14px]">The Wedding Of</p>
+            <h1 className="font-alex text-[48px] md:text-[58px] leading-tight drop-shadow">{couple}</h1>
+            <p className="font-playfair text-[13px] capitalize">{fullDate}</p>
+          </div>
+          <div className="relative z-10 flex flex-col items-center">
+            <p className="font-playfair text-[13px]">Dear</p>
+            <p className="font-lligat text-lg font-semibold mt-1 mb-4">{name || "Tamu Undangan"}</p>
+            <button onClick={handleOpen} className={btn}>
+              <FaEnvelopeOpen /> Buka Undangan
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ══════════ LEFT PANE (DESKTOP / LANDSCAPE) ══════════ */}
       <div
         className="hidden md:flex flex-1 h-screen relative overflow-hidden text-white select-none flex-col items-center justify-end pb-16"
@@ -345,28 +367,6 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
           isOpen ? "overflow-y-auto" : "overflow-hidden"
         } overflow-x-hidden scroll-smooth relative bg-white md:shadow-[-8px_0_30px_rgba(0,0,0,0.25)]`}
       >
-        {/* ─── COVER (BEFORE OPEN) ─── */}
-        {!isOpen && (
-          <div
-            className="fixed md:absolute inset-0 z-[60] flex flex-col items-center justify-between text-center text-white py-16 px-6"
-            style={{ backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
-          >
-            <div className="absolute inset-0 bg-black/35" />
-            <div className="relative z-10">
-              <p className="font-playfair text-[13px]">The Wedding Of</p>
-              <h1 className="font-alex text-[46px] leading-tight drop-shadow">{couple}</h1>
-              <p className="font-playfair text-[13px] capitalize">{fullDate}</p>
-            </div>
-            <div className="relative z-10 flex flex-col items-center">
-              <p className="font-playfair text-[13px]">Dear</p>
-              <p className="font-lligat text-lg font-semibold mt-1 mb-4">{name || "Tamu Undangan"}</p>
-              <button onClick={handleOpen} className={btn}>
-                <FaEnvelopeOpen /> Buka Undangan
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* ─── 1. HERO ─── */}
         <section
           id="section-countdown"
