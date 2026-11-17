@@ -73,10 +73,7 @@ function Reveal({
     if (!el) return;
     const obs = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          obs.disconnect();
-        }
+        setVisible(entry.isIntersecting);
       },
       { threshold: 0.1 }
     );
@@ -94,9 +91,9 @@ function Reveal({
   return (
     <div
       ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-all duration-700 ease-out will-change-transform ${
-        visible ? "opacity-100 translate-y-0 scale-100" : hiddenClass
+      style={{ transitionDelay: visible ? `${delay}ms` : "0ms" }}
+      className={`transition-all ease-out will-change-transform ${
+        visible ? "duration-700 opacity-100 translate-y-0 scale-100" : `duration-200 ${hiddenClass}`
       } ${className}`}
     >
       {children}
