@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ScreenStart from "./components/ScreenStart";
 import MainContent from "./components/MainContent";
 
 export default function Home() {
-  const [showContent, setShowContent] = useState(false);
   const [name, setName] = useState<string>("");
   const [settings, setSettings] = useState<any>(null);
   const [guestStatus, setGuestStatus] = useState<"checking" | "valid" | "invalid">("checking");
@@ -16,9 +14,6 @@ export default function Home() {
     const urlParams = new URLSearchParams(window.location.search);
     const isPreview = urlParams.get("preview") === "true";
     setIsPreviewMode(isPreview);
-    if (isPreview) {
-      setShowContent(true);
-    }
 
     const toParam = urlParams.get("to");
 
@@ -78,14 +73,7 @@ export default function Home() {
     };
     window.addEventListener("message", handlePreviewMessage);
 
-    const contentTimer = setTimeout(() => {
-      if (!isPreview) {
-        setShowContent(true);
-      }
-    }, 4500);
-
     return () => {
-      clearTimeout(contentTimer);
       window.removeEventListener("message", handlePreviewMessage);
     };
   }, []);
@@ -120,8 +108,7 @@ export default function Home() {
 
   return (
     <div className="h-screen w-screen overflow-hidden">
-      {!isPreviewMode && <ScreenStart config={settings} />}
-      {showContent && <MainContent name={name} config={settings} isPreview={isPreviewMode} />}
+      <MainContent name={name} config={settings} isPreview={isPreviewMode} />
     </div>
   );
 }

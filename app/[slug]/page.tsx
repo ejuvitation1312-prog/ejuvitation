@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import ScreenStart from "../components/ScreenStart";
 import MainContent from "../components/MainContent";
 
 type ParamsProps = {
@@ -9,7 +8,6 @@ type ParamsProps = {
 };
 
 export default function Home({ params: { slug } }: ParamsProps) {
-  const [showContent, setShowContent] = useState(false);
   const [name, setName] = useState<string>("");
   const [settings, setSettings] = useState<any>(null);
   const [guestStatus, setGuestStatus] = useState<"checking" | "valid" | "invalid">("checking");
@@ -17,9 +15,6 @@ export default function Home({ params: { slug } }: ParamsProps) {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const isPreview = urlParams.get("preview") === "true";
-    if (isPreview) {
-      setShowContent(true);
-    }
 
     const initializeApp = async () => {
       const parsedSlug = decodeURIComponent(slug).replace(/-/g, " ").trim();
@@ -68,14 +63,7 @@ export default function Home({ params: { slug } }: ParamsProps) {
     };
     window.addEventListener("message", handlePreviewMessage);
 
-    const contentTimer = setTimeout(() => {
-      if (!isPreview) {
-        setShowContent(true);
-      }
-    }, 4500);
-
     return () => {
-      clearTimeout(contentTimer);
       window.removeEventListener("message", handlePreviewMessage);
     };
   }, [slug]);
@@ -93,8 +81,7 @@ export default function Home({ params: { slug } }: ParamsProps) {
 
   return (
     <div className="h-screen w-screen overflow-hidden">
-      <ScreenStart config={settings} />
-      {showContent && <MainContent name={name} config={settings} />}
+      <MainContent name={name} config={settings} />
     </div>
   );
 }
