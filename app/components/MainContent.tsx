@@ -729,24 +729,45 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         </section>
 
         {/* ─── 8. VIDEO PREWEDDING ─── */}
-        <section
-          className="relative py-12 text-center"
-          style={{ backgroundImage: `url(${prewedBg})`, backgroundSize: "cover", backgroundPosition: "center" }}
-        >
-          <div className="absolute inset-0 bg-[#928573]/75" />
-          <div className="relative z-10">
-            <SectionTitle top="Video" bottom="Prewedding" light ornament={false} />
-            {cfg.prewedding?.link && (
-              <div className="mx-4 mt-6 aspect-video bg-black/30 rounded overflow-hidden">
-                {cfg.prewedding.link.includes("<iframe") ? (
-                  <div className="w-full h-full [&_iframe]:w-full [&_iframe]:h-full" dangerouslySetInnerHTML={{ __html: cfg.prewedding.link }} />
-                ) : (
-                  <iframe src={cfg.prewedding.link} className="w-full h-full" allowFullScreen />
-                )}
-              </div>
-            )}
-          </div>
-        </section>
+        {cfg.prewedding?.enabled !== false && (
+          <section
+            className="relative py-12 text-center"
+            style={{ backgroundImage: `url(${prewedBg})`, backgroundSize: "cover", backgroundPosition: "center" }}
+          >
+            <div className="absolute inset-0 bg-[#928573]/75" />
+            <div className="relative z-10">
+              <SectionTitle top="Video" bottom="Prewedding" light ornament={false} />
+              {cfg.prewedding?.link && (() => {
+                const raw = String(cfg.prewedding.link).trim();
+                if (raw.includes("<iframe")) {
+                  return (
+                    <div
+                      className="mx-4 mt-6 aspect-video bg-black/30 rounded-lg overflow-hidden shadow-lg [&_iframe]:w-full [&_iframe]:h-full"
+                      dangerouslySetInnerHTML={{ __html: raw }}
+                    />
+                  );
+                }
+                const ytMatch = raw.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                const videoId = ytMatch ? ytMatch[1] : /^[a-zA-Z0-9_-]{11}$/.test(raw) ? raw : null;
+                const embedSrc = videoId ? `https://www.youtube.com/embed/${videoId}?rel=0` : raw;
+                return (
+                  <div className="mx-4 mt-6 aspect-video bg-black/30 rounded-lg overflow-hidden shadow-lg">
+                    <iframe
+                      src={embedSrc}
+                      title="Video Prewedding"
+                      className="w-full h-full border-0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                );
+              })()}
+              {cfg.prewedding?.detail && (
+                <p className="font-lligat text-[12px] text-white/90 mt-3 px-6">{cfg.prewedding.detail}</p>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* ─── 9. LIVE STREAMING ─── */}
         {cfg.livestreaming?.enabled !== false && (
