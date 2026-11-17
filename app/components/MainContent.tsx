@@ -439,7 +439,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
       )}
 
       {/* ══════════ COVER (BEFORE OPEN — FULLSCREEN BOTH DESKTOP & MOBILE) ══════════ */}
-      {!isOpen && (() => {
+      {!isPreview && (() => {
         const pos = cfg.sideBannerPosition || "bottom";
         const coverAlign =
           pos === "top"
@@ -455,7 +455,11 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
           pos === "left" ? "md:items-start" : pos === "right" ? "md:items-end" : "md:items-center";
 
         return (
-          <div className={`fixed inset-0 z-[60] flex flex-col items-center justify-center gap-12 text-center ${coverAlign} text-white px-6 select-none overflow-hidden`}>
+          <div
+            className={`fixed inset-0 z-[60] flex flex-col items-center justify-center gap-12 text-center ${coverAlign} text-white px-6 select-none overflow-hidden transition-all duration-700 ease-out ${
+              isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+            }`}
+          >
             {/* Background: Side Banner on desktop/landscape, Hero Cover on mobile */}
             <div
               className="absolute inset-0 bg-cover bg-center md:hidden"
@@ -545,7 +549,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
         return (
           <div
-            className={`hidden md:flex flex-1 h-screen relative overflow-hidden text-white select-none flex-col ${containerAlign}`}
+            className={`hidden md:flex flex-1 h-screen relative overflow-hidden text-white select-none flex-col transition-all duration-700 ease-out ${containerAlign}`}
             style={{ backgroundImage: `url(${leftHeroImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
           >
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-black/30" />
@@ -576,9 +580,11 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
       {/* ══════════ RIGHT PANE: INVITATION ══════════ */}
       <div
         ref={scrollRef}
-        className={`w-full md:w-[430px] md:min-w-[430px] h-screen ${
-          isOpen ? "overflow-y-auto" : "overflow-hidden"
-        } overflow-x-hidden scroll-smooth relative bg-white md:shadow-[-8px_0_30px_rgba(0,0,0,0.25)]`}
+        className={`w-full h-screen ${
+          isOpen
+            ? "md:w-[430px] md:min-w-[430px] md:opacity-100 overflow-y-auto"
+            : "md:w-0 md:min-w-0 md:opacity-0 overflow-hidden"
+        } overflow-x-hidden scroll-smooth relative bg-white md:shadow-[-8px_0_30px_rgba(0,0,0,0.25)] transition-all duration-700 ease-out`}
       >
         {/* ─── 1. HERO ─── */}
         <section
