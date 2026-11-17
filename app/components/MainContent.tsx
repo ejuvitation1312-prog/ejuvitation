@@ -21,6 +21,8 @@ import {
   FaGift,
   FaVideo,
   FaRing,
+  FaChevronLeft,
+  FaChevronRight,
 } from "react-icons/fa";
 import { config as defaultConfig } from "@/lib/config";
 
@@ -89,7 +91,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
   const [isOpen, setIsOpen] = useState(isPreview);
   const [showOpenBtn, setShowOpenBtn] = useState(false);
-  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [showAmplop, setShowAmplop] = useState(false);
   const [showKado, setShowKado] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -103,8 +105,12 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [formName, setFormName] = useState(name && name !== "Tamu Undangan" ? name : "");
   const [formAttendance, setFormAttendance] = useState("hadir");
+  const [formGuests, setFormGuests] = useState(1);
   const [formMessage, setFormMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [isEditingWish, setIsEditingWish] = useState(false);
+  const [rsvpNotice, setRsvpNotice] = useState<string | null>(null);
 
   const rawGallery = Array.isArray(cfg.galleryImages) ? cfg.galleryImages.filter(Boolean) : [];
   const galleryImages: string[] = rawGallery.length > 0 ? rawGallery : DEFAULT_GALLERY;
@@ -164,7 +170,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg.eventDate]);
 
-  /* Wishes */
+  /* Wishes & Check existing RSVP */
   useEffect(() => {
     (async () => {
       try {
@@ -176,8 +182,40 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
       } catch {
         /* ignore */
       }
+      if (name && name !== "Tamu Undangan") {
+        try {
+          const chk = await fetch(`/api/check-wish?name=${encodeURIComponent(name)}`);
+          if (chk.ok) {
+            const cData = await chk.json();
+            if (cData.exists && cData.wish) {
+              setFormAttendance((cData.wish.attendance || "hadir").toLowerCase());
+              setFormGuests(cData.wish.guests || 1);
+              setFormMessage(cData.wish.message || "");
+              setHasSubmitted(true);
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
     })();
-  }, []);
+  }, [name]);
+
+  /* Lightbox keyboard navigation */
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxIndex(null);
+      if (e.key === "ArrowLeft") {
+        setLightboxIndex((idx) => (idx === null ? null : (idx - 1 + galleryImages.length) % galleryImages.length));
+      }
+      if (e.key === "ArrowRight") {
+        setLightboxIndex((idx) => (idx === null ? null : (idx + 1) % galleryImages.length));
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightboxIndex, galleryImages.length]);
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -212,7 +250,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     const payload = {
       name: formName.trim(),
       attendance: formAttendance,
-      guests: formAttendance === "tidak_hadir" ? 0 : 1,
+      guests: formAttendance === "hadir" ? Number(formGuests) || 1 : 0,
       message: formMessage.trim(),
     };
     const local: Wish = { _id: `temp_${Date.now()}`, ...payload, createdAt: new Date().toISOString() };
@@ -225,8 +263,11 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     } catch {
       /* ignore – still show locally */
     } finally {
-      setWishes((prev) => [local, ...prev.filter((w) => w.name !== payload.name)]);
-      setFormMessage("");
+      setWishes((prev) => [local, ...prev.filter((w) => w.name.toLowerCase() !== payload.name.toLowerCase())]);
+      setHasSubmitted(true);
+      setIsEditingWish(false);
+      setRsvpNotice("Terima kasih! Konfirmasi & ucapan Anda telah tersimpan.");
+      setTimeout(() => setRsvpNotice(null), 4000);
       setIsSubmitting(false);
     }
   };
@@ -302,16 +343,55 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     <div className="h-screen w-screen flex flex-col md:flex-row bg-white text-[#383838] font-lligat relative overflow-hidden">
       <audio ref={audioRef} src={cfg.musicPath || "/music/wedding_song.mp3"} loop preload="auto" />
 
-      {/* ══════════ LIGHTBOX ══════════ */}
-      {lightboxSrc && (
+      {/* ══════════ LIGHTBOX WITH NAVIGATOR ══════════ */}
+      {lightboxIndex !== null && galleryImages[lightboxIndex] && (
         <div
-          className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4 cursor-pointer"
-          onClick={() => setLightboxSrc(null)}
+          className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center p-4 select-none"
+          onClick={() => setLightboxIndex(null)}
         >
-          <button className="absolute top-5 right-6 text-white text-2xl">
+          <span className="absolute top-5 left-6 text-white/80 text-xs font-mono">
+            {lightboxIndex + 1} / {galleryImages.length}
+          </span>
+          <button
+            type="button"
+            onClick={() => setLightboxIndex(null)}
+            className="absolute top-5 right-6 text-white text-2xl hover:text-white/75"
+            aria-label="Tutup"
+          >
             <FaTimes />
           </button>
-          <img src={lightboxSrc} alt="Preview" className="max-w-[92vw] max-h-[90vh] object-contain" />
+          {galleryImages.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex((lightboxIndex - 1 + galleryImages.length) % galleryImages.length);
+              }}
+              className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition"
+              aria-label="Sebelumnya"
+            >
+              <FaChevronLeft />
+            </button>
+          )}
+          <img
+            src={galleryImages[lightboxIndex]}
+            alt={`Gallery ${lightboxIndex + 1}`}
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-[88vw] max-h-[85vh] object-contain rounded shadow-2xl"
+          />
+          {galleryImages.length > 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLightboxIndex((lightboxIndex + 1) % galleryImages.length);
+              }}
+              className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition"
+              aria-label="Berikutnya"
+            >
+              <FaChevronRight />
+            </button>
+          )}
         </div>
       )}
 
@@ -493,8 +573,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                   key={i}
                   src={src}
                   alt=""
-                  onClick={() => setLightboxSrc(src)}
-                  className="w-[82px] h-[120px] object-cover rounded-md cursor-pointer"
+                  className="w-[82px] h-[120px] object-cover rounded-md"
                 />
               ))}
             </div>
@@ -640,7 +719,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                     key={i}
                     src={src}
                     alt={`Gallery ${i + 1}`}
-                    onClick={() => setLightboxSrc(src)}
+                    onClick={() => setLightboxIndex(i)}
                     className={`w-full ${itemHeight} object-cover rounded-md cursor-pointer hover:opacity-90 transition`}
                   />
                 ))}
@@ -785,36 +864,99 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               </div>
             </div>
 
-            <form onSubmit={handleSubmitWish} className="p-4 flex flex-col gap-2 border-b border-[#ddd]">
-              <input
-                type="text"
-                placeholder="Nama"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                required
-                className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573]"
-              />
-              <textarea
-                placeholder="Ucapan & Doa"
-                value={formMessage}
-                onChange={(e) => setFormMessage(e.target.value)}
-                required
-                rows={3}
-                className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573] resize-none"
-              />
-              <select
-                value={formAttendance}
-                onChange={(e) => setFormAttendance(e.target.value)}
-                className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573]"
-              >
-                <option value="hadir">Hadir</option>
-                <option value="tidak_hadir">Tidak Hadir</option>
-                <option value="masih_ragu">Masih Ragu</option>
-              </select>
-              <button type="submit" disabled={isSubmitting} className={`${btn} w-full !py-2 mt-1`}>
-                {isSubmitting ? "Mengirim..." : "Kirim"}
-              </button>
-            </form>
+            {rsvpNotice && (
+              <div className="mx-4 mt-3 bg-[#3D9A62] text-white text-[11px] px-3 py-2 rounded text-center">
+                {rsvpNotice}
+              </div>
+            )}
+
+            {hasSubmitted && !isEditingWish ? (
+              <div className="p-4 border-b border-[#ddd] text-center space-y-2">
+                <p className="text-[12px] font-semibold text-[#383838]">
+                  Terima kasih, {formName}!
+                </p>
+                <p className="text-[11px] text-[#5A5A5A]">
+                  Status:{" "}
+                  <strong className="text-[#383838]">
+                    {formAttendance === "hadir"
+                      ? `Hadir (${formGuests} Orang)`
+                      : formAttendance === "tidak_hadir"
+                      ? "Tidak Hadir"
+                      : "Masih Ragu"}
+                  </strong>
+                </p>
+                {formMessage && (
+                  <p className="text-[11px] italic text-[#5A5A5A] bg-white px-3 py-2 rounded border border-[#e3e3e3]">
+                    &ldquo;{formMessage}&rdquo;
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsEditingWish(true)}
+                  className={`${btn} !text-[11px] !px-3 !py-1 mt-1`}
+                >
+                  Ubah Konfirmasi / Ucapan
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitWish} className="p-4 flex flex-col gap-2 border-b border-[#ddd]">
+                <input
+                  type="text"
+                  placeholder="Nama"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  readOnly={Boolean(name && name !== "Tamu Undangan")}
+                  required
+                  className={`w-full px-3 py-2 rounded border border-[#ccc] text-[12px] outline-none focus:border-[#928573] ${
+                    name && name !== "Tamu Undangan" ? "bg-[#e7e7e7] text-[#5A5A5A]" : "bg-white"
+                  }`}
+                />
+                <select
+                  value={formAttendance}
+                  onChange={(e) => setFormAttendance(e.target.value)}
+                  className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573]"
+                >
+                  <option value="hadir">Hadir</option>
+                  <option value="tidak_hadir">Tidak Hadir</option>
+                  <option value="masih_ragu">Masih Ragu</option>
+                </select>
+                {formAttendance === "hadir" && (
+                  <select
+                    value={formGuests}
+                    onChange={(e) => setFormGuests(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573]"
+                  >
+                    {[1, 2, 3, 4, 5].map((g) => (
+                      <option key={g} value={g}>
+                        Jumlah Tamu: {g} Orang
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <textarea
+                  placeholder="Ucapan & Doa"
+                  value={formMessage}
+                  onChange={(e) => setFormMessage(e.target.value)}
+                  required
+                  rows={3}
+                  className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573] resize-none"
+                />
+                <div className="flex gap-2 mt-1">
+                  {isEditingWish && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingWish(false)}
+                      className="px-4 py-2 rounded-[5px] border border-[#ccc] bg-white text-[#5A5A5A] text-[12px]"
+                    >
+                      Batal
+                    </button>
+                  )}
+                  <button type="submit" disabled={isSubmitting} className={`${btn} flex-1 !py-2`}>
+                    {isSubmitting ? "Mengirim..." : isEditingWish ? "Simpan Perubahan" : "Kirim"}
+                  </button>
+                </div>
+              </form>
+            )}
 
             <div className="max-h-80 overflow-y-auto">
               {wishes.length === 0 ? (
@@ -822,7 +964,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               ) : (
                 wishes.map((w, i) => (
                   <div key={w._id || i} className="px-4 py-3 border-b border-[#e3e3e3] text-left">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center flex-wrap gap-1.5">
                       <span className="text-[12px] font-bold text-[#383838]">{w.name}</span>
                       <span
                         className={`text-[9px] text-white px-1.5 py-0.5 rounded ${
@@ -835,6 +977,11 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                       >
                         {w.attendance === "hadir" ? "Hadir" : w.attendance === "tidak_hadir" ? "Tidak hadir" : "Masih Ragu"}
                       </span>
+                      {w.attendance === "hadir" && w.guests ? (
+                        <span className="text-[9px] bg-[#e1d6c7] text-[#5A5A5A] px-1.5 py-0.5 rounded">
+                          {w.guests} Tamu
+                        </span>
+                      ) : null}
                     </div>
                     <p className="text-[12px] text-[#5A5A5A] mt-1 leading-snug">{w.message}</p>
                   </div>
