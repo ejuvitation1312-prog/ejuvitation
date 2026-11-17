@@ -159,6 +159,8 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [isEditingWish, setIsEditingWish] = useState(false);
   const [rsvpNotice, setRsvpNotice] = useState<string | null>(null);
+  const [showRsvpPopup, setShowRsvpPopup] = useState(false);
+  const [popupDismissed, setPopupDismissed] = useState(false);
 
   const rawGallery = Array.isArray(cfg.galleryImages) ? cfg.galleryImages.filter(Boolean) : [];
   const galleryImages: string[] = rawGallery.length > 0 ? rawGallery : DEFAULT_GALLERY;
@@ -259,6 +261,18 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxIndex, galleryImages.length]);
+
+  /* Popup reminder to fill RSVP after opening invitation */
+  useEffect(() => {
+    if (!isOpen || isPreview || hasSubmitted || popupDismissed) {
+      if (hasSubmitted) setShowRsvpPopup(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setShowRsvpPopup(true);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isOpen, isPreview, hasSubmitted, popupDismissed]);
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -435,6 +449,44 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               <FaChevronRight />
             </button>
           )}
+        </div>
+      )}
+
+      {/* ══════════ RSVP POPUP REMINDER ══════════ */}
+      {showRsvpPopup && !hasSubmitted && (
+        <div className="fixed bottom-16 right-0 left-0 md:left-auto md:w-[430px] z-[55] px-4 pointer-events-none animate-fadeIn">
+          <div className="pointer-events-auto bg-white border-2 border-[#928573] rounded-xl shadow-2xl p-4 relative text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setShowRsvpPopup(false);
+                setPopupDismissed(true);
+              }}
+              className="absolute top-2.5 right-3 text-[#7D7D7D] hover:text-[#383838] text-sm"
+              aria-label="Tutup Popup"
+            >
+              <FaTimes />
+            </button>
+            <p className="font-playfair text-[15px] font-semibold text-[#383838] mb-1">
+              Konfirmasi Kehadiran
+            </p>
+            <p className="font-lligat text-[12px] text-[#5A5A5A] leading-snug whitespace-pre-line pr-2">
+              {(cfg.popupTemplate ||
+                "Hai {nama}! Terima kasih telah membuka undangan kami. Mohon kesediaannya untuk mengisi ucapan doa dan konfirmasi kehadiran pada form RSVP di bawah ya!"
+              ).replace(/\{nama\}/gi, name && name !== "Tamu Undangan" ? name : "Bapak/Ibu/Saudara/i")}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowRsvpPopup(false);
+                setPopupDismissed(true);
+                scrollTo("section-rsvp");
+              }}
+              className={`${btn} mt-3 !text-[12px] !px-4 !py-1.5`}
+            >
+              <FaCommentDots /> Isi RSVP &amp; Ucapan Sekarang
+            </button>
+          </div>
         </div>
       )}
 
