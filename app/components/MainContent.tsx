@@ -510,10 +510,13 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               <p className="font-playfair text-sm tracking-[0.3em] uppercase text-white/90">The Wedding Of</p>
               <h1 className="font-alex text-7xl lg:text-8xl leading-tight drop-shadow-lg my-2">{couple}</h1>
               <p className="font-playfair text-base lg:text-lg text-white/90 capitalize">{fullDate}</p>
-              <p className={`font-playfair italic text-sm text-white/80 mt-5 leading-relaxed max-w-lg ${verseMargin}`}>
-                &ldquo;Karena itu, apa yang telah dipersatukan Allah, tidak boleh diceraikan manusia.&rdquo;
+              <p className={`font-playfair italic text-sm text-white/85 mt-5 leading-relaxed max-w-lg whitespace-pre-line ${verseMargin}`}>
+                {cfg.bibleVerseContent ||
+                  '"Karena itu, apa yang telah dipersatukan Allah, tidak boleh diceraikan manusia."'}
               </p>
-              <p className="font-lligat text-xs tracking-widest text-white/70 mt-1">Markus 10:9</p>
+              {cfg.bibleVerse && (
+                <p className="font-lligat text-xs tracking-widest text-white/75 mt-1.5">{cfg.bibleVerse}</p>
+              )}
               <div className={`flex ${countdownAlign} gap-3 mt-8`}>
                 {countdownBoxes.map((b) => (
                   <div key={b.l} className="bg-[#928573]/80 rounded-md w-[72px] py-2.5 text-center backdrop-blur-sm">
@@ -706,7 +709,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         )}
 
         {/* ─── 7. MOMENT GALLERY ─── */}
-        <section id="section-media" className="bg-white min-h-screen flex flex-col justify-center pt-6 pb-16 px-2">
+        <section id="section-media" className="bg-white pt-8 pb-10 px-2">
           <SectionTitle top="Moment" bottom="Gallery" />
           {(() => {
             const count = galleryImages.length;
@@ -947,7 +950,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                     onChange={(e) => setFormGuests(Number(e.target.value))}
                     className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573]"
                   >
-                    {[1, 2, 3, 4, 5].map((g) => (
+                    {[1, 2].map((g) => (
                       <option key={g} value={g}>
                         Jumlah Tamu: {g} Orang
                       </option>
@@ -1015,12 +1018,13 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         {/* ─── 12. QUOTES (Ayat) ─── */}
         <section className="bg-[#ECECEC] py-8 px-6 text-center">
           <h3 className="font-montserrat italic font-light text-[24px] tracking-wide text-[#383838]">QUOTES</h3>
-          <p className="font-montserrat italic text-[11px] text-[#383838] leading-snug mt-2">
-            &ldquo;Sebab itu seorang laki-laki akan meninggalkan ayahnya dan ibunya dan bersatu dengan isterinya,
-            sehingga keduanya menjadi satu daging. Karena itu, apa yang telah dipersatukan Allah, tidak boleh
-            diceraikan manusia.&rdquo;
+          <p className="font-montserrat italic text-[11px] text-[#383838] leading-snug mt-2 whitespace-pre-line">
+            {cfg.bibleVerseContent ||
+              '"Sebab itu seorang laki-laki akan meninggalkan ayahnya dan ibunya dan bersatu dengan isterinya, sehingga keduanya menjadi satu daging."'}
           </p>
-          <p className="font-montserrat text-[10px] text-[#7D7D7D] mt-1">(Kejadian 2:24 &amp; Markus 10:9)</p>
+          {cfg.bibleVerse && (
+            <p className="font-montserrat text-[10px] text-[#7D7D7D] mt-1.5">({cfg.bibleVerse})</p>
+          )}
         </section>
 
         {/* ─── 13. PENUTUP ─── */}
@@ -1042,9 +1046,6 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
             <div className="w-14 h-px bg-[#928573]" />
           </div>
           <p className="font-alex text-[38px] text-[#928573] mt-1">{couple}</p>
-          <p className="font-lligat text-[10px] text-[#7D7D7D] mt-4">
-            {cfg.craftedWithLove || "Crafted with Love"}
-          </p>
         </section>
       </div>
 

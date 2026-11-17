@@ -2254,19 +2254,6 @@ export default function AdminDashboard() {
                             </div>
                             <p className="text-[10px] text-neutral-500 mt-2">Atur posisi kotak teks agar foto tidak tertutup.</p>
                           </div>
-
-                          {/* FOOTER / WATERMARK (CRAFTED WITH LOVE) */}
-                          <div>
-                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Teks Footer / Watermark (Slide Terakhir)</label>
-                            <textarea
-                              rows={3}
-                              value={settings.craftedWithLove ?? "Crafted with Love"}
-                              onChange={(e) => handleUpdateField("craftedWithLove", e.target.value)}
-                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-white transition-all text-sm"
-                              placeholder="Contoh: Crafted with Love&#10;by Edward & Dian"
-                            />
-                            <p className="text-[10px] text-neutral-500 mt-1">Bisa multi-baris (tekan Enter untuk baris baru), teks akan otomatis rata tengah (center).</p>
-                          </div>
                         </div>
                       </div>
                     )}
