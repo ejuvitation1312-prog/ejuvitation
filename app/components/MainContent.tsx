@@ -456,8 +456,8 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
         return (
           <div
-            className={`fixed inset-0 z-[60] flex flex-col items-center justify-center gap-12 text-center ${coverAlign} text-white px-6 select-none overflow-hidden transition-all duration-700 ease-out ${
-              isOpen ? "opacity-0 pointer-events-none" : "opacity-100"
+            className={`fixed inset-0 z-[60] flex flex-col items-center justify-center gap-12 text-center ${coverAlign} text-white px-6 select-none overflow-hidden transition-opacity duration-300 ease-out ${
+              isOpen ? "opacity-0 md:hidden pointer-events-none" : "opacity-100"
             }`}
           >
             {/* Background: Side Banner on desktop/landscape, Hero Cover on mobile */}
