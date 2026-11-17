@@ -1,5 +1,5 @@
 {
-  "coupleNames": "juan & elia",
+  "coupleNames": "ELIA & JUAN",
   "eventDate": "2026-12-13T09:00:00",
   "groom": "Adriel Juan Ardika",
   "groomNickName": "Juan",
@@ -26,7 +26,7 @@
   "timeline_5": "",
   "timeline_5_content": "",
   "timelineCount": 3,
-  "loveJourneyEnabled": true,
+  "loveJourneyEnabled": false,
   "holyMatrimony": {
     "enabled": true,
     "time": "Pukul 09.00 WIB",
@@ -42,13 +42,13 @@
     "googleMapsLink": "https://www.google.com/maps/search/?api=1&query=Gedung+Dakwah+Muhammadiyah+Gresik+Jl+Raya+Permata+7"
   },
   "livestreaming": {
-    "enabled": true,
+    "enabled": false,
     "time": "09.00 WIB",
     "link": "https://instagram.com/kristiawati_elia",
     "detail": "Instagram: @kristiawati_elia"
   },
   "prewedding": {
-    "enabled": true,
+    "enabled": false,
     "link": "UNPkHTSZH2Q",
     "detail": "our moments"
   },

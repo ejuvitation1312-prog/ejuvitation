@@ -81,3 +81,16 @@ CREATE POLICY "Allow public update own wish" ON public.wishes
 DROP POLICY IF EXISTS "Allow service role all wishes" ON public.wishes;
 CREATE POLICY "Allow service role all wishes" ON public.wishes
     FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- 6. Storage Bucket 'wedding-assets' untuk foto & musik undangan
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('wedding-assets', 'wedding-assets', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Allow public read wedding-assets" ON storage.objects;
+CREATE POLICY "Allow public read wedding-assets" ON storage.objects
+    FOR SELECT TO anon, authenticated USING (bucket_id = 'wedding-assets');
+
+DROP POLICY IF EXISTS "Allow service role all wedding-assets" ON storage.objects;
+CREATE POLICY "Allow service role all wedding-assets" ON storage.objects
+    FOR ALL TO service_role USING (bucket_id = 'wedding-assets') WITH CHECK (bucket_id = 'wedding-assets');
