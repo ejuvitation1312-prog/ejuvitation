@@ -316,75 +316,91 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
       )}
 
       {/* ══════════ COVER (BEFORE OPEN — FULLSCREEN BOTH DESKTOP & MOBILE) ══════════ */}
-      {!isOpen && (
-        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-16 text-center text-white px-6 select-none overflow-hidden">
-          {/* Background: Side Banner on desktop/landscape, Hero Cover on mobile */}
-          <div
-            className="absolute inset-0 bg-cover bg-center md:hidden"
-            style={{ backgroundImage: `url(${heroImage})` }}
-          />
-          <div
-            className="absolute inset-0 bg-cover bg-center hidden md:block"
-            style={{ backgroundImage: `url(${leftHeroImage})` }}
-          />
-          <div className="absolute inset-0 bg-black/35" />
-          {/* Subtle floating sparkles */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            {[
-              { top: "18%", left: "22%", delay: "0s", size: "w-1 h-1" },
-              { top: "28%", left: "74%", delay: "0.7s", size: "w-1.5 h-1.5" },
-              { top: "42%", left: "35%", delay: "1.3s", size: "w-1 h-1" },
-              { top: "55%", left: "65%", delay: "0.4s", size: "w-1 h-1" },
-              { top: "68%", left: "28%", delay: "1.1s", size: "w-1.5 h-1.5" },
-              { top: "75%", left: "78%", delay: "0.2s", size: "w-1 h-1" },
-              { top: "33%", left: "52%", delay: "1.6s", size: "w-1 h-1" },
-              { top: "62%", left: "48%", delay: "0.9s", size: "w-1 h-1" },
-            ].map((dot, idx) => (
-              <span
-                key={idx}
-                className={`absolute ${dot.size} rounded-full bg-white/75 animate-pulse`}
-                style={{ top: dot.top, left: dot.left, animationDelay: dot.delay, animationDuration: "2.4s" }}
-              />
-            ))}
-          </div>
+      {!isOpen && (() => {
+        const pos = cfg.sideBannerPosition || "bottom";
+        const coverAlign =
+          pos === "top"
+            ? "md:items-center md:justify-start md:pt-16 md:text-center"
+            : pos === "left"
+            ? "md:items-start md:justify-center md:pl-24 md:text-left"
+            : pos === "right"
+            ? "md:items-end md:justify-center md:pr-24 md:text-right"
+            : pos === "center"
+            ? "md:items-center md:justify-center md:text-center"
+            : "md:items-center md:justify-end md:pb-16 md:text-center";
+        const ctaAlign =
+          pos === "left" ? "md:items-start" : pos === "right" ? "md:items-end" : "md:items-center";
 
-          <div className="relative z-10">
-            <p className="font-playfair text-[14px] animate-fadeIn">The Wedding Of</p>
-            <h1 className="font-alex text-[48px] md:text-[58px] leading-tight drop-shadow min-h-[64px] md:min-h-[76px]">
-              <TypeAnimation
-                sequence={[
-                  couple,
-                  400,
-                  () => setShowOpenBtn(true),
-                ]}
-                wrapper="span"
-                speed={25}
-                cursor={false}
-                repeat={0}
-              />
-            </h1>
-            <p
-              className={`font-playfair text-[13px] capitalize transition-opacity duration-700 ${
-                showOpenBtn ? "opacity-100" : "opacity-0"
+        return (
+          <div className={`fixed inset-0 z-[60] flex flex-col items-center justify-center gap-12 text-center ${coverAlign} text-white px-6 select-none overflow-hidden`}>
+            {/* Background: Side Banner on desktop/landscape, Hero Cover on mobile */}
+            <div
+              className="absolute inset-0 bg-cover bg-center md:hidden"
+              style={{ backgroundImage: `url(${heroImage})` }}
+            />
+            <div
+              className="absolute inset-0 bg-cover bg-center hidden md:block"
+              style={{ backgroundImage: `url(${leftHeroImage})` }}
+            />
+            <div className="absolute inset-0 bg-black/35" />
+            {/* Subtle floating sparkles */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              {[
+                { top: "18%", left: "22%", delay: "0s", size: "w-1 h-1" },
+                { top: "28%", left: "74%", delay: "0.7s", size: "w-1.5 h-1.5" },
+                { top: "42%", left: "35%", delay: "1.3s", size: "w-1 h-1" },
+                { top: "55%", left: "65%", delay: "0.4s", size: "w-1 h-1" },
+                { top: "68%", left: "28%", delay: "1.1s", size: "w-1.5 h-1.5" },
+                { top: "75%", left: "78%", delay: "0.2s", size: "w-1 h-1" },
+                { top: "33%", left: "52%", delay: "1.6s", size: "w-1 h-1" },
+                { top: "62%", left: "48%", delay: "0.9s", size: "w-1 h-1" },
+              ].map((dot, idx) => (
+                <span
+                  key={idx}
+                  className={`absolute ${dot.size} rounded-full bg-white/75 animate-pulse`}
+                  style={{ top: dot.top, left: dot.left, animationDelay: dot.delay, animationDuration: "2.4s" }}
+                />
+              ))}
+            </div>
+
+            <div className="relative z-10">
+              <p className="font-playfair text-[14px] animate-fadeIn">The Wedding Of</p>
+              <h1 className="font-alex text-[48px] md:text-[64px] leading-tight drop-shadow min-h-[64px] md:min-h-[82px]">
+                <TypeAnimation
+                  sequence={[
+                    couple,
+                    400,
+                    () => setShowOpenBtn(true),
+                  ]}
+                  wrapper="span"
+                  speed={25}
+                  cursor={false}
+                  repeat={0}
+                />
+              </h1>
+              <p
+                className={`font-playfair text-[13px] capitalize transition-opacity duration-700 ${
+                  showOpenBtn ? "opacity-100" : "opacity-0"
+                }`}
+              >
+                {fullDate}
+              </p>
+            </div>
+
+            <div
+              className={`relative z-10 flex flex-col items-center ${ctaAlign} transition-all duration-700 ${
+                showOpenBtn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
               }`}
             >
-              {fullDate}
-            </p>
+              <p className="font-playfair text-[13px]">Dear</p>
+              <p className="font-lligat text-lg font-semibold mt-1 mb-4">{name || "Tamu Undangan"}</p>
+              <button onClick={handleOpen} className={btn}>
+                <FaEnvelopeOpen /> Buka Undangan
+              </button>
+            </div>
           </div>
-
-          <div
-            className={`relative z-10 flex flex-col items-center transition-all duration-700 ${
-              showOpenBtn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-            }`}
-          >
-            <p className="font-playfair text-[13px]">Dear</p>
-            <p className="font-lligat text-lg font-semibold mt-1 mb-4">{name || "Tamu Undangan"}</p>
-            <button onClick={handleOpen} className={btn}>
-              <FaEnvelopeOpen /> Buka Undangan
-            </button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ══════════ LEFT PANE (DESKTOP / LANDSCAPE) ══════════ */}
       {(() => {
