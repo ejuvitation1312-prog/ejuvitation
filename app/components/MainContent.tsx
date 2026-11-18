@@ -262,16 +262,50 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     return () => window.removeEventListener("keydown", onKey);
   }, [lightboxIndex, galleryImages.length]);
 
-  /* Popup reminder to fill RSVP after opening invitation */
+  /* Popup reminder: triggers whenever guest touches Tanggal Acara (#section-events) or Moment Gallery (#section-media) */
   useEffect(() => {
-    if (!isOpen || isPreview || hasSubmitted || popupDismissed) {
+    if (!isOpen || isPreview || hasSubmitted) {
       if (hasSubmitted) setShowRsvpPopup(false);
       return;
     }
-    const timer = setTimeout(() => {
-      setShowRsvpPopup(true);
-    }, 5000);
-    return () => clearTimeout(timer);
+
+    const eventsEl = document.getElementById("section-events");
+    const mediaEl = document.getElementById("section-media");
+    const rsvpEl = document.getElementById("section-rsvp");
+    if (!eventsEl && !mediaEl) return;
+
+    const visibleTriggers = new Set<string>();
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const id = entry.target.id;
+          if (id === "section-rsvp") {
+            if (entry.isIntersecting) setShowRsvpPopup(false);
+            continue;
+          }
+          if (entry.isIntersecting) {
+            visibleTriggers.add(id);
+            if (!popupDismissed) {
+              setShowRsvpPopup(true);
+            }
+          } else {
+            visibleTriggers.delete(id);
+          }
+        }
+        // Reset dismiss once guest scrolls away from both trigger sections (so going back/next re-triggers)
+        if (visibleTriggers.size === 0 && popupDismissed) {
+          setPopupDismissed(false);
+        }
+      },
+      { threshold: 0.25 }
+    );
+
+    if (eventsEl) obs.observe(eventsEl);
+    if (mediaEl) obs.observe(mediaEl);
+    if (rsvpEl) obs.observe(rsvpEl);
+
+    return () => obs.disconnect();
   }, [isOpen, isPreview, hasSubmitted, popupDismissed]);
 
   const handleOpen = () => {
