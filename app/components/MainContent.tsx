@@ -31,6 +31,7 @@ interface MainContentProps {
   name?: string;
   config?: any;
   isPreview?: boolean;
+  isDemo?: boolean;
 }
 
 interface Wish {
@@ -135,8 +136,9 @@ function SectionTitle({
   );
 }
 
-export default function MainContent({ name, config: dynamicConfig, isPreview = false }: MainContentProps) {
+export default function MainContent({ name, config: dynamicConfig, isPreview = false, isDemo = false }: MainContentProps) {
   const cfg = dynamicConfig || defaultConfig;
+  const isDemoMode = isDemo || !name || name === "Demo" || name === "Tamu Undangan";
 
   const [isOpen, setIsOpen] = useState(isPreview);
   const [showOpenBtn, setShowOpenBtn] = useState(false);
@@ -152,7 +154,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   const [wishes, setWishes] = useState<Wish[]>([]);
-  const [formName, setFormName] = useState(name && name !== "Tamu Undangan" ? name : "");
+  const [formName, setFormName] = useState(name && name !== "Demo" && name !== "Tamu Undangan" ? name : "");
   const [formAttendance, setFormAttendance] = useState("Hadir");
   const [formGuests, setFormGuests] = useState(1);
   const [formMessage, setFormMessage] = useState("");
@@ -228,7 +230,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
       } catch {
         /* ignore */
       }
-      if (name && name !== "Tamu Undangan") {
+      if (!isDemoMode && name) {
         try {
           const chk = await fetch(`/api/check-wish?name=${encodeURIComponent(name)}`);
           if (chk.ok) {
@@ -266,8 +268,8 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
   /* Popup reminder: triggers whenever guest touches Tanggal Acara (#section-events) or Moment Gallery (#section-media) */
   useEffect(() => {
-    if (!isOpen || isPreview || hasSubmitted) {
-      if (hasSubmitted) setShowRsvpPopup(false);
+    if (!isOpen || isPreview || isDemoMode || hasSubmitted) {
+      if (hasSubmitted || isDemoMode) setShowRsvpPopup(false);
       return;
     }
 
@@ -308,7 +310,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     if (rsvpEl) obs.observe(rsvpEl);
 
     return () => obs.disconnect();
-  }, [isOpen, isPreview, hasSubmitted, popupDismissed]);
+  }, [isOpen, isPreview, isDemoMode, hasSubmitted, popupDismissed]);
 
   const handleOpen = () => {
     setIsOpen(true);
@@ -338,7 +340,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
   const handleSubmitWish = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !formMessage.trim()) return;
+    if (isDemoMode || !formName.trim() || !formMessage.trim()) return;
     setIsSubmitting(true);
     const payload = {
       name: formName.trim(),
@@ -348,19 +350,26 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     };
     const local: Wish = { _id: `temp_${Date.now()}`, ...payload, createdAt: new Date().toISOString() };
     try {
-      await fetch("/api/submit", {
+      const res = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-    } catch {
-      /* ignore – still show locally */
-    } finally {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setRsvpNotice(err.error || "Gagal menyimpan RSVP. Pastikan link undangan Anda valid.");
+        setTimeout(() => setRsvpNotice(null), 4000);
+        return;
+      }
       setWishes((prev) => [local, ...prev.filter((w) => w.name.toLowerCase() !== payload.name.toLowerCase())]);
       setHasSubmitted(true);
       setIsEditingWish(false);
       setRsvpNotice("Terima kasih! Konfirmasi & ucapan Anda telah tersimpan.");
       setTimeout(() => setRsvpNotice(null), 4000);
+    } catch {
+      setRsvpNotice("Koneksi gagal. Silakan coba lagi.");
+      setTimeout(() => setRsvpNotice(null), 4000);
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -614,7 +623,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               }`}
             >
               <p className="font-playfair text-[13px]">Dear</p>
-              <p className="font-lligat text-lg font-semibold mt-1 mb-4">{name || "Tamu Undangan"}</p>
+              <p className="font-lligat text-lg font-semibold mt-1 mb-4">{name || "Demo"}</p>
               <button onClick={handleOpen} className={btn}>
                 <FaEnvelopeOpen /> Buka Undangan
               </button>
@@ -1106,21 +1115,34 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               </div>
             ) : (
               <form onSubmit={handleSubmitWish} className="p-4 flex flex-col gap-2 border-b border-[#ddd]">
+                {isDemoMode && (
+                  <div className="bg-[#E1D6C7] text-[#383838] text-[11px] px-3 py-2 rounded text-center mb-1">
+                    Mode <strong>Demo</strong>: Pengisian RSVP &amp; ucapan hanya aktif melalui tautan undangan pribadi tamu yang terdaftar.
+                  </div>
+                )}
                 <input
                   type="text"
-                  placeholder="Nama"
-                  value={formName}
+                  placeholder={isDemoMode ? "Mode Demo (Terkunci)" : "Nama"}
+                  value={isDemoMode ? "Demo" : formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  readOnly={Boolean(name && name !== "Tamu Undangan") || isEditingWish}
+                  readOnly={!isDemoMode && (Boolean(name) || isEditingWish)}
+                  disabled={isDemoMode}
                   required
                   className={`w-full px-3 py-2 rounded border border-[#ccc] text-[12px] outline-none focus:border-[#928573] ${
-                    (name && name !== "Tamu Undangan") || isEditingWish ? "bg-[#e7e7e7] text-[#5A5A5A]" : "bg-white"
+                    isDemoMode
+                      ? "bg-[#e7e7e7] text-[#7D7D7D] cursor-not-allowed"
+                      : Boolean(name) || isEditingWish
+                      ? "bg-[#e7e7e7] text-[#5A5A5A]"
+                      : "bg-white"
                   }`}
                 />
                 <select
                   value={formAttendance}
                   onChange={(e) => setFormAttendance(e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573]"
+                  disabled={isDemoMode}
+                  className={`w-full px-3 py-2 rounded border border-[#ccc] text-[12px] outline-none focus:border-[#928573] ${
+                    isDemoMode ? "bg-[#e7e7e7] text-[#7D7D7D] cursor-not-allowed" : "bg-white"
+                  }`}
                 >
                   <option value="Hadir">Hadir</option>
                   <option value="Tidak Hadir">Tidak Hadir</option>
@@ -1130,7 +1152,10 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                   <select
                     value={formGuests}
                     onChange={(e) => setFormGuests(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573]"
+                    disabled={isDemoMode}
+                    className={`w-full px-3 py-2 rounded border border-[#ccc] text-[12px] outline-none focus:border-[#928573] ${
+                      isDemoMode ? "bg-[#e7e7e7] text-[#7D7D7D] cursor-not-allowed" : "bg-white"
+                    }`}
                   >
                     {[1, 2].map((g) => (
                       <option key={g} value={g}>
@@ -1140,15 +1165,18 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                   </select>
                 )}
                 <textarea
-                  placeholder="Ucapan & Doa"
+                  placeholder={isDemoMode ? "Ucapan & Doa dinonaktifkan di Mode Demo" : "Ucapan & Doa"}
                   value={formMessage}
                   onChange={(e) => setFormMessage(e.target.value)}
+                  disabled={isDemoMode}
                   required
                   rows={3}
-                  className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573] resize-none"
+                  className={`w-full px-3 py-2 rounded border border-[#ccc] text-[12px] outline-none focus:border-[#928573] resize-none ${
+                    isDemoMode ? "bg-[#e7e7e7] text-[#7D7D7D] cursor-not-allowed" : "bg-white"
+                  }`}
                 />
                 <div className="flex gap-2 mt-1">
-                  {isEditingWish && (
+                  {isEditingWish && !isDemoMode && (
                     <button
                       type="button"
                       onClick={() => setIsEditingWish(false)}
@@ -1157,8 +1185,12 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                       Batal
                     </button>
                   )}
-                  <button type="submit" disabled={isSubmitting} className={`${btn} flex-1 !py-2`}>
-                    {isSubmitting ? "Mengirim..." : isEditingWish ? "Simpan Perubahan" : "Kirim"}
+                  <button
+                    type="submit"
+                    disabled={isDemoMode || isSubmitting}
+                    className={`${btn} flex-1 !py-2 ${isDemoMode ? "opacity-50 cursor-not-allowed hover:bg-[#928573]" : ""}`}
+                  >
+                    {isDemoMode ? "Khusus Tamu Terdaftar" : isSubmitting ? "Mengirim..." : isEditingWish ? "Simpan Perubahan" : "Kirim"}
                   </button>
                 </div>
               </form>

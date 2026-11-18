@@ -79,6 +79,17 @@ export default function Home({ params: { slug } }: ParamsProps) {
     );
   }
 
+  if (guestStatus === "invalid") {
+    return (
+      <div className="min-h-screen bg-[#2b1f17] flex flex-col items-center justify-center text-white font-montserrat px-6">
+        <h1 className="text-3xl font-great-vibes mb-4 text-[#d4b896]">Akses Ditolak</h1>
+        <p className="text-center text-[#ede5d5] text-xs max-w-sm">
+          Maaf, nama Anda tidak terdaftar dalam daftar tamu undangan kami, atau link yang Anda gunakan tidak valid.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-screen overflow-hidden">
       <MainContent name={name} config={settings} />

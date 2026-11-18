@@ -1,10 +1,31 @@
 import { NextResponse } from "next/server";
-import { createDynamicWish } from "@/lib/dbHelper";
+import { createDynamicWish, getDynamicGuests } from "@/lib/dbHelper";
 
 export async function POST(req: Request) {
   try {
     const { name, attendance, guests, message } = await req.json();
-    await createDynamicWish({ name, attendance, guests: Number(guests), message });
+    const cleanName = String(name || "").trim();
+
+    if (!cleanName || cleanName.toLowerCase() === "demo" || cleanName.toLowerCase() === "tamu undangan") {
+      return NextResponse.json(
+        { error: "Mode Demo: hanya tamu undangan terdaftar yang dapat mengisi RSVP." },
+        { status: 403 }
+      );
+    }
+
+    const registeredGuests = await getDynamicGuests();
+    const isRegistered = registeredGuests.some(
+      (g: any) => String(g.name || "").toLowerCase().trim() === cleanName.toLowerCase()
+    );
+
+    if (!isRegistered) {
+      return NextResponse.json(
+        { error: "Nama Anda tidak terdaftar dalam daftar tamu undangan." },
+        { status: 403 }
+      );
+    }
+
+    await createDynamicWish({ name: cleanName, attendance, guests: Number(guests), message });
 
     return NextResponse.json(
       {

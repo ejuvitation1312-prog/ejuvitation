@@ -9,6 +9,7 @@ export default function Home() {
   const [guestStatus, setGuestStatus] = useState<"checking" | "valid" | "invalid">("checking");
 
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -41,7 +42,8 @@ export default function Home() {
           isGuestValid = true;
         }
       } else {
-        setName("Tamu Undangan");
+        setName("Demo");
+        setIsDemoMode(true);
       }
 
       setGuestStatus(isGuestValid ? "valid" : "invalid");
@@ -108,7 +110,7 @@ export default function Home() {
 
   return (
     <div className="h-screen w-screen overflow-hidden">
-      <MainContent name={name} config={settings} isPreview={isPreviewMode} />
+      <MainContent name={name} config={settings} isPreview={isPreviewMode} isDemo={isDemoMode} />
     </div>
   );
 }
