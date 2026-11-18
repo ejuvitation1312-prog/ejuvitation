@@ -686,6 +686,8 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
           style={{ backgroundImage: `url(${heroImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
         >
           <span id="section-home" className="absolute top-0" />
+          <span id="section-general" className="absolute top-0" />
+          <span id="section-music" className="absolute top-0" />
           <div className="absolute inset-0 bg-black/15" />
           <Reveal variant="fadeInUp" className="relative z-10">
             <p className="font-playfair text-[13px] drop-shadow">The Wedding Of</p>
@@ -901,6 +903,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         {/* ─── 8. VIDEO PREWEDDING ─── */}
         {cfg.prewedding?.enabled !== false && (
           <section
+            id="section-prewedding"
             className="relative py-12 text-center"
             style={{ backgroundImage: `url(${prewedBg})`, backgroundSize: "cover", backgroundPosition: "center" }}
           >
@@ -947,7 +950,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
         {/* ─── 9. LIVE STREAMING ─── */}
         {cfg.livestreaming?.enabled !== false && (
-          <section className="bg-[#ECECEC] py-8 px-6 text-center">
+          <section id="section-livestreaming" className="bg-[#ECECEC] py-8 px-6 text-center">
             <Reveal variant="fadeInUp">
               <FaInstagram className="mx-auto text-[34px] text-[#383838]" />
               <h3 className="font-combo text-[17px] text-[#5A5A5A] mt-2">Live Streaming</h3>
@@ -1046,7 +1049,8 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         </section>
 
         {/* ─── 11. UCAPAN & DO'A ─── */}
-        <section id="section-rsvp" className="bg-[#B3A99C] pt-10 pb-12 px-4">
+        <section id="section-rsvp" className="relative bg-[#B3A99C] pt-10 pb-12 px-4">
+          <span id="section-popupTemplate" className="absolute top-0" />
           <SectionTitle top="Ucapan" bottom="& Do'a" ornament={false} light />
           <div className="bg-[#F0F0F0] rounded-lg shadow-md mt-5 overflow-hidden">
             <div className="p-4 text-center border-b border-[#ddd]">
