@@ -152,7 +152,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [formName, setFormName] = useState(name && name !== "Tamu Undangan" ? name : "");
-  const [formAttendance, setFormAttendance] = useState("hadir");
+  const [formAttendance, setFormAttendance] = useState("Hadir");
   const [formGuests, setFormGuests] = useState(1);
   const [formMessage, setFormMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -233,7 +233,8 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
           if (chk.ok) {
             const cData = await chk.json();
             if (cData.exists && cData.wish) {
-              setFormAttendance((cData.wish.attendance || "hadir").toLowerCase());
+              const norm = (cData.wish.attendance || "Hadir").toLowerCase().replace(/[_-]/g, " ").trim();
+              setFormAttendance(norm === "tidak hadir" ? "Tidak Hadir" : norm === "masih ragu" ? "Masih Ragu" : "Hadir");
               setFormGuests(cData.wish.guests || 1);
               setFormMessage(cData.wish.message || "");
               setHasSubmitted(true);
@@ -341,7 +342,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     const payload = {
       name: formName.trim(),
       attendance: formAttendance,
-      guests: formAttendance === "hadir" ? Number(formGuests) || 1 : 0,
+      guests: formAttendance === "Hadir" ? Number(formGuests) || 1 : 0,
       message: formMessage.trim(),
     };
     const local: Wish = { _id: `temp_${Date.now()}`, ...payload, createdAt: new Date().toISOString() };
@@ -363,9 +364,15 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     }
   };
 
-  const countHadir = wishes.filter((w) => w.attendance === "hadir").length;
-  const countTidak = wishes.filter((w) => w.attendance === "tidak_hadir").length;
-  const countRagu = wishes.filter((w) => w.attendance !== "hadir" && w.attendance !== "tidak_hadir").length;
+  const normAtt = (v: string) => {
+    const s = (v || "").toLowerCase().replace(/[_-]/g, " ").trim();
+    if (s === "tidak hadir") return "Tidak Hadir";
+    if (s === "masih ragu") return "Masih Ragu";
+    return "Hadir";
+  };
+  const countHadir = wishes.filter((w) => normAtt(w.attendance) === "Hadir").length;
+  const countTidak = wishes.filter((w) => normAtt(w.attendance) === "Tidak Hadir").length;
+  const countRagu = wishes.filter((w) => normAtt(w.attendance) === "Masih Ragu").length;
 
   const banks: { bankName: string; accountNumber: string; accountHolderName: string }[] =
     cfg.weddingGift?.bankAccounts?.length
@@ -856,12 +863,28 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
           <SectionTitle top="Moment" bottom="Gallery" />
           {(() => {
             const count = galleryImages.length;
-            const gridCols = count > 6 ? "grid-cols-3 gap-1.5" : count > 4 ? "grid-cols-2 gap-1.5" : "grid-cols-2 gap-2";
-            const itemHeight = count > 4 ? "h-[145px]" : "h-[210px]";
+            const gridCols =
+              count > 12
+                ? "grid-cols-3 gap-1"
+                : count > 6
+                ? "grid-cols-3 gap-1.5"
+                : count > 4
+                ? "grid-cols-2 gap-1.5"
+                : "grid-cols-2 gap-2";
+            const itemHeight =
+              count > 15
+                ? "h-[74px]"
+                : count > 12
+                ? "h-[88px]"
+                : count > 9
+                ? "h-[108px]"
+                : count > 4
+                ? "h-[140px]"
+                : "h-[205px]";
             return (
               <div className={`grid ${gridCols} mt-4`}>
                 {galleryImages.map((src, i) => (
-                  <Reveal key={i} variant="zoomIn" delay={(i % 4) * 80}>
+                  <Reveal key={i} variant="zoomIn" delay={(i % 6) * 60}>
                     <img
                       src={src}
                       alt={`Gallery ${i + 1}`}
@@ -1056,9 +1079,9 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                 <p className="text-[11px] text-[#5A5A5A]">
                   Status:{" "}
                   <strong className="text-[#383838]">
-                    {formAttendance === "hadir"
+                    {formAttendance === "Hadir"
                       ? `Hadir (${formGuests} Orang)`
-                      : formAttendance === "tidak_hadir"
+                      : formAttendance === "Tidak Hadir"
                       ? "Tidak Hadir"
                       : "Masih Ragu"}
                   </strong>
@@ -1094,11 +1117,11 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                   onChange={(e) => setFormAttendance(e.target.value)}
                   className="w-full px-3 py-2 rounded border border-[#ccc] bg-white text-[12px] outline-none focus:border-[#928573]"
                 >
-                  <option value="hadir">Hadir</option>
-                  <option value="tidak_hadir">Tidak Hadir</option>
-                  <option value="masih_ragu">Masih Ragu</option>
+                  <option value="Hadir">Hadir</option>
+                  <option value="Tidak Hadir">Tidak Hadir</option>
+                  <option value="Masih Ragu">Masih Ragu</option>
                 </select>
-                {formAttendance === "hadir" && (
+                {formAttendance === "Hadir" && (
                   <select
                     value={formGuests}
                     onChange={(e) => setFormGuests(Number(e.target.value))}
@@ -1140,30 +1163,33 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               {wishes.length === 0 ? (
                 <p className="text-[11px] text-[#7D7D7D] p-4">Belum ada ucapan. Jadilah yang pertama!</p>
               ) : (
-                wishes.map((w, i) => (
-                  <div key={w._id || i} className="px-4 py-3 border-b border-[#e3e3e3] text-left">
-                    <div className="flex items-center flex-wrap gap-1.5">
-                      <span className="text-[12px] font-bold text-[#383838]">{w.name}</span>
-                      <span
-                        className={`text-[9px] text-white px-1.5 py-0.5 rounded ${
-                          w.attendance === "hadir"
-                            ? "bg-[#3D9A62]"
-                            : w.attendance === "tidak_hadir"
-                            ? "bg-[#d90a11]"
-                            : "bg-[#d7a916]"
-                        }`}
-                      >
-                        {w.attendance === "hadir" ? "Hadir" : w.attendance === "tidak_hadir" ? "Tidak hadir" : "Masih Ragu"}
-                      </span>
-                      {w.attendance === "hadir" && w.guests ? (
-                        <span className="text-[9px] bg-[#e1d6c7] text-[#5A5A5A] px-1.5 py-0.5 rounded">
-                          {w.guests} Tamu
+                wishes.map((w, i) => {
+                  const st = normAtt(w.attendance);
+                  return (
+                    <div key={w._id || i} className="px-4 py-3 border-b border-[#e3e3e3] text-left">
+                      <div className="flex items-center flex-wrap gap-1.5">
+                        <span className="text-[12px] font-bold text-[#383838]">{w.name}</span>
+                        <span
+                          className={`text-[9px] text-white px-1.5 py-0.5 rounded ${
+                            st === "Hadir"
+                              ? "bg-[#3D9A62]"
+                              : st === "Tidak Hadir"
+                              ? "bg-[#d90a11]"
+                              : "bg-[#d7a916]"
+                          }`}
+                        >
+                          {st}
                         </span>
-                      ) : null}
+                        {st === "Hadir" && w.guests ? (
+                          <span className="text-[9px] bg-[#e1d6c7] text-[#5A5A5A] px-1.5 py-0.5 rounded">
+                            {w.guests} Tamu
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-[12px] text-[#5A5A5A] mt-1 leading-snug">{w.message}</p>
                     </div>
-                    <p className="text-[12px] text-[#5A5A5A] mt-1 leading-snug">{w.message}</p>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

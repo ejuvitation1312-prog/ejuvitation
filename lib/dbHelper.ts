@@ -521,6 +521,14 @@ export async function deleteDynamicGuestBulk(ids: string[]) {
 
 // ============ WISHES / RSVP ============
 
+// Normalisasi status kehadiran agar konsisten di frontend, admin, dan database.
+export function normalizeAttendance(value: any): "Hadir" | "Tidak Hadir" | "Masih Ragu" {
+  const v = String(value || "").toLowerCase().replace(/[_-]/g, " ").trim();
+  if (v === "tidak hadir" || v === "tidak") return "Tidak Hadir";
+  if (v === "masih ragu" || v === "ragu") return "Masih Ragu";
+  return "Hadir";
+}
+
 export async function getDynamicWishes(page: number, limit: number) {
   try {
     const from = (page - 1) * limit;
@@ -538,8 +546,8 @@ export async function getDynamicWishes(page: number, limit: number) {
         wishes: data.map((w: any) => ({
           _id: w.id,
           name: w.name,
-          attendance: w.attendance,
-          guests: w.guests,
+          attendance: normalizeAttendance(w.attendance),
+          guests: normalizeAttendance(w.attendance) === "Tidak Hadir" ? 0 : w.guests,
           message: w.message,
           createdAt: w.created_at,
           updatedAt: w.updated_at,
@@ -557,7 +565,10 @@ export async function getDynamicWishes(page: number, limit: number) {
   const filePath = path.join(DATA_DIR, "wishes.json");
   try {
     const fileData = await fs.readFile(filePath, "utf-8");
-    const wishes = JSON.parse(fileData);
+    const wishes = JSON.parse(fileData).map((w: any) => ({
+      ...w,
+      attendance: normalizeAttendance(w.attendance),
+    }));
     const totalWishes = wishes.length;
     const paginated = wishes.slice((page - 1) * limit, page * limit);
     return {
@@ -586,7 +597,7 @@ export async function findWishByName(name: string) {
       return {
         _id: w.id,
         name: w.name,
-        attendance: w.attendance,
+        attendance: normalizeAttendance(w.attendance),
         guests: w.guests,
         message: w.message,
         createdAt: w.created_at,
@@ -612,16 +623,16 @@ export async function findWishByName(name: string) {
 export async function createDynamicWish(rawWishData: any) {
   // Normalisasi jumlah tamu: "Tidak Hadir" selalu 0.
   // Jangan pakai `guests || 1` karena 0 dianggap falsy → berubah jadi 1.
-  const attendance = rawWishData.attendance || "Hadir";
+  const attendance = normalizeAttendance(rawWishData.attendance);
   const parsedGuests = Number(rawWishData.guests);
   const wishData = {
     ...rawWishData,
     attendance,
     guests:
-      attendance === "Tidak Hadir" || attendance === "tidak_hadir"
+      attendance === "Tidak Hadir"
         ? 0
         : Number.isFinite(parsedGuests) && parsedGuests > 0
-        ? parsedGuests
+        ? Math.min(parsedGuests, 2)
         : 1,
   };
 

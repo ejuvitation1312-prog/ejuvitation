@@ -2722,7 +2722,7 @@ export default function AdminDashboard() {
                             {/* SIDE IMAGE */}
                             <div className="bg-neutral-950/40 border border-neutral-800/40 p-4 rounded-xl flex flex-col justify-between">
                               <div>
-                                <span className="text-xs font-semibold text-neutral-400 block mb-2 uppercase">Desktop Side Banner &amp; Cover Landscape</span>
+                                <span className="text-xs font-semibold text-neutral-400 block mb-2 uppercase">Banner Desktop &amp; Cover Landscape</span>
                                 <div className="w-full h-32 rounded-lg bg-neutral-900 border border-neutral-800 flex items-center justify-center overflow-hidden mb-3">
                                   {settings.slideImages.sideImage ? (
                                     <img src={settings.slideImages.sideImage} alt="side" className="w-full h-full object-cover" />
@@ -2748,16 +2748,15 @@ export default function AdminDashboard() {
 
                             {/* SLIDES GENERATOR LOOP */}
                             {[
-                              { num: 1, label: "1. Cover Mobile & Hero Utama" },
-                              { num: 2, label: "2. Foto Mempelai Wanita (Bride)" },
-                              { num: 3, label: "3. Foto Mempelai Pria (Groom)" },
+                              { num: 1, label: "1. Cover HP & Hero Utama" },
+                              { num: 2, label: "2. Foto Mempelai Wanita" },
+                              { num: 3, label: "3. Foto Mempelai Pria" },
                               { num: 4, label: "4. Foto Love Story 1" },
                               { num: 5, label: "5. Foto Love Story 2" },
                               { num: 6, label: "6. Foto Love Story 3" },
                               { num: 7, label: "7. Bg Video Prewedding" },
-                              { num: 8, label: "8. Background Cadangan" },
-                              { num: 9, label: "9. Foto Penutup (Closing)" },
-                              { num: 10, label: "10. Foto Share Link / OG" },
+                              { num: 9, label: "8. Foto Penutup (Terakhir)" },
+                              { num: 10, label: "9. Thumbnail Share Link WA" },
                             ].map(({ num, label }) => {
                               const slideKey = `slide${num}`;
                               const slideVal = (settings.slideImages as any)[slideKey];
@@ -2795,11 +2794,11 @@ export default function AdminDashboard() {
                         {/* GALERI FOTO */}
                         <div className="border-t border-neutral-800/60 pt-6 space-y-4">
                           <h3 className="text-sm font-semibold uppercase text-neutral-300 flex items-center gap-x-2">
-                            <FaImage /> <span>Foto Galeri (Foto 1 - 9)</span>
+                            <FaImage /> <span>Foto Galeri (Foto 1 - 18)</span>
                           </h3>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((idx) => {
+                            {Array.from({ length: 18 }, (_, i) => i).map((idx) => {
                               const galleryImages = settings.galleryImages || [];
                               const imgVal = galleryImages[idx] || "";
                               return (
