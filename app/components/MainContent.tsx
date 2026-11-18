@@ -703,6 +703,10 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
             <p className="font-playfair text-[13px] drop-shadow">The Wedding Of</p>
             <h1 className="font-alex text-[40px] leading-tight drop-shadow-md">{couple}</h1>
             <p className="font-playfair text-[12px] drop-shadow capitalize">{fullDate}</p>
+            <div className="mt-4">
+              <p className="font-playfair text-[11px] drop-shadow opacity-90">Dear</p>
+              <p className="font-lligat text-[15px] font-semibold drop-shadow">{name || "Demo"}</p>
+            </div>
           </Reveal>
           <Reveal variant="fadeInUp" delay={150} className="relative z-10 flex gap-2">
             {countdownBoxes.map((b) => (
