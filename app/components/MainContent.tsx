@@ -20,6 +20,7 @@ import {
   FaVolumeMute,
   FaGift,
   FaVideo,
+  FaBroadcastTower,
   FaRing,
   FaChevronLeft,
   FaChevronRight,
@@ -952,11 +953,11 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         {cfg.livestreaming?.enabled !== false && (
           <section id="section-livestreaming" className="bg-[#ECECEC] py-8 px-6 text-center">
             <Reveal variant="fadeInUp">
-              <FaInstagram className="mx-auto text-[34px] text-[#383838]" />
+              <FaBroadcastTower className="mx-auto text-[34px] text-[#383838]" />
               <h3 className="font-combo text-[17px] text-[#5A5A5A] mt-2">Live Streaming</h3>
               <p className="font-lligat text-[12px] text-[#383838] leading-tight mt-2">
-                Temui kami secara virtual untuk menyaksikan acara pernikahan kami yang akan disiarkan langsung melalui
-                akun instagram kami berikut ini.
+                Temui kami secara virtual untuk menyaksikan acara pernikahan kami yang akan disiarkan secara langsung
+                melalui tautan berikut ini.
               </p>
               <a href={cfg.livestreaming?.link || "#"} target="_blank" rel="noreferrer" className={`${btn} mt-3`}>
                 <FaVideo /> Live Streaming
