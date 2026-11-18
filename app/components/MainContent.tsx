@@ -1270,7 +1270,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
             <p className="font-alex text-[38px] text-[#928573] mt-1">{couple}</p>
             <div className="mt-6 flex flex-col items-center gap-1.5">
               <p className="font-lligat text-[10px] text-[#7D7D7D] tracking-wide">
-                &copy; {new Date().getFullYear()} {couple}. All rights reserved.
+                {new Date().getFullYear()} {couple}
               </p>
               <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#5A5A5A]">
                 <span className="font-lligat">Development by</span>
