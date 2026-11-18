@@ -1268,6 +1268,22 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               <div className="w-14 h-px bg-[#928573]" />
             </div>
             <p className="font-alex text-[38px] text-[#928573] mt-1">{couple}</p>
+            <div className="mt-6 flex flex-col items-center gap-1.5">
+              <p className="font-lligat text-[10px] text-[#7D7D7D] tracking-wide">
+                &copy; {new Date().getFullYear()} {couple}. All rights reserved.
+              </p>
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-[#5A5A5A]">
+                <span className="font-lligat">Development by</span>
+                <a
+                  href="https://www.instagram.com/edianventure"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 bg-[#928573] hover:bg-[#7d7262] text-white font-combo text-[11px] px-2.5 py-0.5 rounded-[5px] shadow-sm transition"
+                >
+                  <FaInstagram className="text-[11px]" /> edianventure
+                </a>
+              </div>
+            </div>
           </Reveal>
         </section>
       </div>
