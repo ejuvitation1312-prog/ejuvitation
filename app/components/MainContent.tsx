@@ -448,7 +448,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
   );
 
   return (
-    <div className="h-screen w-screen flex flex-col md:flex-row bg-white text-[#383838] font-lligat relative overflow-hidden">
+    <div className="h-screen w-screen flex flex-col lg:flex-row bg-white text-[#383838] font-lligat relative overflow-hidden">
       <audio ref={audioRef} src={cfg.musicPath || "/music/wedding_song.mp3"} loop preload="auto" />
 
       {/* ══════════ LIGHTBOX WITH NAVIGATOR ══════════ */}
@@ -505,7 +505,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
       {/* ══════════ RSVP POPUP REMINDER ══════════ */}
       {showRsvpPopup && !hasSubmitted && (
-        <div className="fixed bottom-16 right-0 left-0 md:left-auto md:w-[430px] z-[55] px-4 pointer-events-none animate-fadeIn">
+        <div className="fixed bottom-16 right-0 left-0 lg:left-auto lg:w-[430px] z-[55] px-4 pointer-events-none animate-fadeIn">
           <div className="pointer-events-auto bg-white border-2 border-[#928573] rounded-xl shadow-2xl p-4 relative text-center">
             <button
               type="button"
@@ -546,30 +546,30 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         const pos = cfg.sideBannerPosition || "bottom";
         const coverAlign =
           pos === "top"
-            ? "md:items-center md:justify-start md:pt-16 md:text-center"
+            ? "lg:items-center lg:justify-start lg:pt-16 lg:text-center"
             : pos === "left"
-            ? "md:items-start md:justify-center md:pl-24 md:text-left"
+            ? "lg:items-start lg:justify-center lg:pl-24 lg:text-left"
             : pos === "right"
-            ? "md:items-end md:justify-center md:pr-24 md:text-right"
+            ? "lg:items-end lg:justify-center lg:pr-24 lg:text-right"
             : pos === "center"
-            ? "md:items-center md:justify-center md:text-center"
-            : "md:items-center md:justify-end md:pb-16 md:text-center";
+            ? "lg:items-center lg:justify-center lg:text-center"
+            : "lg:items-center lg:justify-end lg:pb-16 lg:text-center";
         const ctaAlign =
-          pos === "left" ? "md:items-start" : pos === "right" ? "md:items-end" : "md:items-center";
+          pos === "left" ? "lg:items-start" : pos === "right" ? "lg:items-end" : "lg:items-center";
 
         return (
           <div
             className={`fixed inset-0 z-[60] flex flex-col items-center justify-center gap-12 text-center ${coverAlign} text-white px-6 select-none overflow-hidden transition-opacity duration-300 ease-out ${
-              isOpen ? "opacity-0 md:hidden pointer-events-none" : "opacity-100"
+              isOpen ? "opacity-0 lg:hidden pointer-events-none" : "opacity-100"
             }`}
           >
-            {/* Background: Side Banner on desktop/landscape, Hero Cover on mobile */}
+            {/* Background: Side Banner on desktop/landscape, Hero Cover on mobile/tablet */}
             <div
-              className="absolute inset-0 bg-cover bg-center md:hidden"
+              className="absolute inset-0 bg-cover bg-center lg:hidden"
               style={{ backgroundImage: `url(${heroImage})` }}
             />
             <div
-              className="absolute inset-0 bg-cover bg-center hidden md:block"
+              className="absolute inset-0 bg-cover bg-center hidden lg:block"
               style={{ backgroundImage: `url(${leftHeroImage})` }}
             />
             <div className="absolute inset-0 bg-black/35" />
@@ -622,8 +622,10 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                 showOpenBtn ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
               }`}
             >
-              <p className="font-playfair text-[13px]">Dear</p>
-              <p className="font-lligat text-lg font-semibold mt-1 mb-4">{name || "Demo"}</p>
+              <div className="bg-white/30 backdrop-blur-md border border-white/40 rounded-xl px-6 py-2.5 mb-4 shadow-lg text-center">
+                <p className="font-playfair text-[12px] text-white/90 tracking-wider uppercase">Dear</p>
+                <p className="font-lligat text-xl sm:text-2xl font-bold text-white drop-shadow mt-0.5">{name || "Demo"}</p>
+              </div>
               <button onClick={handleOpen} className={btn}>
                 <FaEnvelopeOpen /> Buka Undangan
               </button>
@@ -652,26 +654,26 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
         return (
           <div
-            className={`hidden md:flex flex-1 h-screen relative overflow-hidden text-white select-none flex-col transition-all duration-700 ease-out ${containerAlign}`}
+            className={`hidden lg:flex flex-1 h-screen relative overflow-hidden text-white select-none flex-col transition-all duration-700 ease-out ${containerAlign}`}
             style={{ backgroundImage: `url(${leftHeroImage})`, backgroundSize: "cover", backgroundPosition: "center" }}
           >
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-black/30" />
-            <div className="relative z-10 px-8 max-w-2xl">
+            <div className="relative z-10 px-6 xl:px-8 max-w-2xl">
               <p className="font-playfair text-sm tracking-[0.3em] uppercase text-white/90">The Wedding Of</p>
-              <h1 className="font-alex text-7xl lg:text-8xl leading-tight drop-shadow-lg my-2">{couple}</h1>
-              <p className="font-playfair text-base lg:text-lg text-white/90 capitalize">{fullDate}</p>
-              <p className={`font-playfair italic text-sm text-white/85 mt-5 leading-relaxed max-w-lg whitespace-pre-line ${verseMargin}`}>
+              <h1 className="font-alex text-5xl xl:text-7xl leading-tight drop-shadow-lg my-2">{couple}</h1>
+              <p className="font-playfair text-base xl:text-lg text-white/90 capitalize">{fullDate}</p>
+              <p className={`font-playfair italic text-xs xl:text-sm text-white/85 mt-5 leading-relaxed max-w-lg whitespace-pre-line ${verseMargin}`}>
                 {cfg.bibleVerseContent ||
                   '"Karena itu, apa yang telah dipersatukan Allah, tidak boleh diceraikan manusia."'}
               </p>
               {cfg.bibleVerse && (
                 <p className="font-lligat text-xs tracking-widest text-white/75 mt-1.5">{cfg.bibleVerse}</p>
               )}
-              <div className={`flex ${countdownAlign} gap-3 mt-8`}>
+              <div className={`flex flex-wrap ${countdownAlign} gap-2.5 xl:gap-3 mt-7`}>
                 {countdownBoxes.map((b) => (
-                  <div key={b.l} className="bg-[#928573]/80 rounded-md w-[72px] py-2.5 text-center backdrop-blur-sm">
-                    <span className="block text-2xl font-semibold leading-none">{b.v}</span>
-                    <span className="block text-[11px] mt-1">{b.l}</span>
+                  <div key={b.l} className="bg-[#928573]/80 rounded-md w-14 xl:w-[72px] py-2 xl:py-2.5 text-center backdrop-blur-sm">
+                    <span className="block text-xl xl:text-2xl font-semibold leading-none">{b.v}</span>
+                    <span className="block text-[10px] xl:text-[11px] mt-1">{b.l}</span>
                   </div>
                 ))}
               </div>
@@ -685,9 +687,9 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
         ref={scrollRef}
         className={`w-full h-screen ${
           isOpen
-            ? "md:w-[430px] md:min-w-[430px] md:opacity-100 overflow-y-auto"
-            : "md:w-0 md:min-w-0 md:opacity-0 overflow-hidden"
-        } overflow-x-hidden scroll-smooth relative bg-white md:shadow-[-8px_0_30px_rgba(0,0,0,0.25)] transition-all duration-700 ease-out`}
+            ? "lg:w-[430px] lg:min-w-[430px] lg:opacity-100 overflow-y-auto"
+            : "lg:w-0 lg:min-w-0 lg:opacity-0 overflow-hidden"
+        } overflow-x-hidden scroll-smooth relative bg-white lg:shadow-[-8px_0_30px_rgba(0,0,0,0.25)] transition-all duration-700 ease-out`}
       >
         {/* ─── 1. HERO ─── */}
         <section
@@ -703,9 +705,9 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
             <p className="font-playfair text-[13px] drop-shadow">The Wedding Of</p>
             <h1 className="font-alex text-[40px] leading-tight drop-shadow-md">{couple}</h1>
             <p className="font-playfair text-[12px] drop-shadow capitalize">{fullDate}</p>
-            <div className="mt-4">
-              <p className="font-playfair text-[11px] drop-shadow opacity-90">Dear</p>
-              <p className="font-lligat text-[15px] font-semibold drop-shadow">{name || "Demo"}</p>
+            <div className="mt-4 inline-block bg-white/30 backdrop-blur-md border border-white/40 rounded-xl px-6 py-2.5 shadow-lg">
+              <p className="font-playfair text-[11px] text-white/95 tracking-wider uppercase drop-shadow">Dear</p>
+              <p className="font-lligat text-[19px] sm:text-[21px] font-bold text-white drop-shadow mt-0.5">{name || "Demo"}</p>
             </div>
           </Reveal>
           <Reveal variant="fadeInUp" delay={150} className="relative z-10 flex gap-2">
@@ -1294,7 +1296,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
       {/* ══════════ BOTTOM NAV (like reference) ══════════ */}
       {isOpen && (
-        <nav className="fixed bottom-0 right-0 left-0 md:left-auto md:w-[430px] z-50 flex justify-center pointer-events-none">
+        <nav className="fixed bottom-0 right-0 left-0 lg:left-auto lg:w-[430px] z-50 flex justify-center pointer-events-none">
           <div className="pointer-events-auto bg-white shadow-[0_-2px_10px_rgba(0,0,0,0.15)] rounded-t-md flex gap-4 px-4 py-1.5">
             {[
               { icon: <FaHome />, id: "section-home", t: "Home" },
