@@ -1188,27 +1188,22 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                 <p className="text-[11px] text-[#7D7D7D] p-4">Belum ada ucapan. Jadilah yang pertama!</p>
               ) : (
                 wishes.map((w, i) => {
-                  const st = normAtt(w.attendance);
+                  const dateLabel = w.createdAt
+                    ? new Date(w.createdAt).toLocaleString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "";
                   return (
                     <div key={w._id || i} className="px-4 py-3 border-b border-[#e3e3e3] text-left">
-                      <div className="flex items-center flex-wrap gap-1.5">
+                      <div className="flex items-center justify-between gap-2">
                         <span className="text-[12px] font-bold text-[#383838]">{w.name}</span>
-                        <span
-                          className={`text-[9px] text-white px-1.5 py-0.5 rounded ${
-                            st === "Hadir"
-                              ? "bg-[#3D9A62]"
-                              : st === "Tidak Hadir"
-                              ? "bg-[#d90a11]"
-                              : "bg-[#d7a916]"
-                          }`}
-                        >
-                          {st}
-                        </span>
-                        {st === "Hadir" && w.guests ? (
-                          <span className="text-[9px] bg-[#e1d6c7] text-[#5A5A5A] px-1.5 py-0.5 rounded">
-                            {w.guests} Tamu
-                          </span>
-                        ) : null}
+                        {dateLabel && (
+                          <span className="text-[10px] text-[#7D7D7D] shrink-0">{dateLabel}</span>
+                        )}
                       </div>
                       <p className="text-[12px] text-[#5A5A5A] mt-1 leading-snug">{w.message}</p>
                     </div>
