@@ -380,9 +380,6 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
     if (s === "masih ragu") return "Masih Ragu";
     return "Hadir";
   };
-  const countHadir = wishes.filter((w) => normAtt(w.attendance) === "Hadir").length;
-  const countTidak = wishes.filter((w) => normAtt(w.attendance) === "Tidak Hadir").length;
-  const countRagu = wishes.filter((w) => normAtt(w.attendance) === "Masih Ragu").length;
 
   const banks: { bankName: string; accountNumber: string; accountHolderName: string }[] =
     cfg.weddingGift?.bankAccounts?.length
@@ -1069,22 +1066,6 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
           <span id="section-popupTemplate" className="absolute top-0" />
           <SectionTitle top="Ucapan" bottom="& Do'a" ornament={false} light />
           <div className="bg-[#F0F0F0] rounded-lg shadow-md mt-5 overflow-hidden">
-            <div className="p-4 text-center border-b border-[#ddd]">
-              <p className="text-[12px] font-semibold text-[#383838]">{wishes.length} Comments</p>
-              <div className="flex justify-center gap-2 mt-2">
-                {[
-                  { n: countHadir, l: "Hadir", c: "bg-[#3D9A62]" },
-                  { n: countTidak, l: "Tidak hadir", c: "bg-[#d90a11]" },
-                  { n: countRagu, l: "Masih Ragu", c: "bg-[#d7a916]" },
-                ].map((s) => (
-                  <div key={s.l} className={`${s.c} text-white rounded w-[78px] py-2`}>
-                    <span className="block text-[15px] font-bold leading-none">{s.n}</span>
-                    <span className="block text-[10px] mt-1">{s.l}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {rsvpNotice && (
               <div className="mx-4 mt-3 bg-[#3D9A62] text-white text-[11px] px-3 py-2 rounded text-center">
                 {rsvpNotice}
