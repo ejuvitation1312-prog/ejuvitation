@@ -1230,19 +1230,33 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
 
         {/* ─── 13. PENUTUP ─── */}
         <section id="section-penutup" className="bg-[#ECECEC] pb-28 text-center">
-          <div
-            className="relative h-[480px] flex items-end justify-center pb-6"
-            style={{ backgroundImage: `url(${closingImage})`, backgroundSize: "cover", backgroundPosition: "center top" }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-[#ECECEC]" />
-            <Reveal variant="fadeInUp" className="relative z-10">
-              <p className="font-lligat text-[13px] text-white leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                Atas kehadiran dan doa restunya,
-                <br />
-                kami ucapkan terima kasih.
-              </p>
-            </Reveal>
-          </div>
+          {(() => {
+            const isTop = cfg.closingBoxPosition === "top";
+            return (
+              <div
+                className={`relative h-[480px] flex justify-center px-6 ${
+                  isTop ? "items-start pt-8" : "items-end pb-6"
+                }`}
+                style={{ backgroundImage: `url(${closingImage})`, backgroundSize: "cover", backgroundPosition: "center top" }}
+              >
+                <div
+                  className={`absolute inset-0 bg-gradient-to-b ${
+                    isTop ? "from-black/45 via-transparent to-[#ECECEC]" : "from-transparent via-transparent to-[#ECECEC]"
+                  }`}
+                />
+                <Reveal variant="fadeInUp" className="relative z-10 max-w-[320px]">
+                  {cfg.thankyou && (
+                    <p className="font-playfair text-[15px] font-semibold text-white mb-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                      {cfg.thankyou}
+                    </p>
+                  )}
+                  <p className="font-lligat text-[13px] text-white leading-snug whitespace-pre-line drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                    {cfg.thankyouDetail || "Atas kehadiran dan doa restunya,\nkami ucapkan terima kasih."}
+                  </p>
+                </Reveal>
+              </div>
+            );
+          })()}
           <Reveal variant="fadeInUp" delay={120}>
             <div className="flex items-center justify-center gap-2 mt-2">
               <div className="w-14 h-px bg-[#928573]" />
