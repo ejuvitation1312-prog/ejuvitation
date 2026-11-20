@@ -1245,11 +1245,6 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                   }`}
                 />
                 <Reveal variant="fadeInUp" className="relative z-10 max-w-[320px]">
-                  {cfg.thankyou && (
-                    <p className="font-playfair text-[15px] font-semibold text-white mb-1 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
-                      {cfg.thankyou}
-                    </p>
-                  )}
                   <p className="font-lligat text-[13px] text-white leading-snug whitespace-pre-line drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
                     {cfg.thankyouDetail || "Atas kehadiran dan doa restunya,\nkami ucapkan terima kasih."}
                   </p>

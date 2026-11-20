@@ -2203,23 +2203,13 @@ export default function AdminDashboard() {
                         <h2 className="text-xl font-ovo border-b border-neutral-800 pb-3 text-white uppercase tracking-wider">Penutup &amp; Ucapan Terima Kasih</h2>
                         <div className="bg-neutral-950/40 rounded-xl border border-neutral-800/40 p-5 space-y-5">
                           <div>
-                            <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Judul Penutup</label>
-                            <input
-                              type="text"
-                              value={settings.thankyou}
-                              onChange={(e) => handleUpdateField("thankyou", e.target.value)}
-                              className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-white transition-all text-sm"
-                              placeholder="Contoh: Thank You For Your Attendance"
-                            />
-                          </div>
-                          <div>
                             <label className="block text-xs font-semibold text-neutral-400 mb-2 uppercase tracking-wide">Deskripsi / Pesan Penutup</label>
                             <textarea
                               rows={3}
                               value={settings.thankyouDetail}
                               onChange={(e) => handleUpdateField("thankyouDetail", e.target.value)}
                               className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-white transition-all text-sm"
-                              placeholder="Contoh: Tetap doakan kami ya Saudara/i..."
+                              placeholder="Contoh: Atas kehadiran dan doa restunya, kami ucapkan terima kasih."
                             />
                           </div>
 
