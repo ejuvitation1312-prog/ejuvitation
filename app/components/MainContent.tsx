@@ -1183,7 +1183,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               </form>
             )}
 
-            <div className="max-h-72 overflow-y-auto">
+            <div className="max-h-60 overflow-y-auto overscroll-contain">
               {wishes.length === 0 ? (
                 <p className="text-[11px] text-[#7D7D7D] p-4">Belum ada ucapan. Jadilah yang pertama!</p>
               ) : (
