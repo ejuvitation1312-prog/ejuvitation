@@ -222,7 +222,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch("/api/get?page=1&limit=100");
+        const res = await fetch("/api/get?page=1&limit=500");
         if (res.ok) {
           const data = await res.json();
           setWishes(data.wishes || []);
@@ -1183,7 +1183,7 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
               </form>
             )}
 
-            <div className="max-h-80 overflow-y-auto">
+            <div className="max-h-72 overflow-y-auto">
               {wishes.length === 0 ? (
                 <p className="text-[11px] text-[#7D7D7D] p-4">Belum ada ucapan. Jadilah yang pertama!</p>
               ) : (
@@ -1211,6 +1211,11 @@ export default function MainContent({ name, config: dynamicConfig, isPreview = f
                 })
               )}
             </div>
+            {wishes.length >= 4 && (
+              <div className="bg-[#e8e3dc] text-[#6b5e4f] text-[10px] py-1.5 px-3 text-center border-t border-[#d8d0c5] select-none">
+                ↕ Geser untuk melihat semua ucapan ({wishes.length})
+              </div>
+            )}
           </div>
         </section>
 
